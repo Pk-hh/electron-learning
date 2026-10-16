@@ -554,6 +554,37 @@ export function App() {
           </div>
         </div>
       )}
+      {/* ── Mobile Bottom Navigation Bar (App-like mobile experience) ── */}
+      <nav className="mobile-bottom-nav">
+        <button
+          className={`mobile-nav-item ${activeTab === 'home' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        >
+          <Home size={20} />
+          <span>Home</span>
+        </button>
+
+        <button
+          className={`mobile-nav-item ${activeTab === 'library' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('library'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        >
+          <Library size={20} />
+          <span>Library</span>
+        </button>
+
+        <button
+          className={`mobile-nav-item ${activeTab === 'bookmarks' ? 'active' : ''}`}
+          onClick={() => { refreshLocalData(); setActiveTab('bookmarks'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        >
+          <Bookmark size={20} />
+          <span>Saved</span>
+          {bookmarkIds.length > 0 && (
+            <span style={{ position: 'absolute', top: 6, right: '28%', background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontSize: '0.6rem', width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+              {bookmarkIds.length}
+            </span>
+          )}
+        </button>
+      </nav>
     </div>
   );
 }
