@@ -22,6 +22,7 @@ import {
   recordDeviceView,
   saveDetectedDuration,
   probeVideoDuration,
+  parseVideoSource,
 } from './services/videoService';
 
 // ── Subject icon map ──────────────────────────────────────────────────────────
@@ -731,136 +732,216 @@ export function App() {
           <div className="player-modal" onClick={e => e.stopPropagation()}>
 
             {/* Video Container (Sticky 16:9 Cinema Player) */}
-            <div
-              className={`player-video-wrapper ${showControls ? 'controls-visible' : 'controls-hidden'}`}
-              onClick={() => {
-                if (showControls) setShowControls(false);
-                else resetControlsTimeout();
-              }}
-              onMouseMove={resetControlsTimeout}
-            >
-              <video
-                ref={videoRef}
-                src={activeVideo.video_url}
-                className="player-video"
-                playsInline
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
-                onEnded={() => {
-                  setIsPlaying(false);
-                  saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
-                }}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                autoPlay
-              />
+            {(() => {
+              const sourceInfo = parseVideoSource(activeVideo.video_url);
+              const isEmbed = sourceInfo.type !== 'direct';
 
-              {/* Toast message overlay on player */}
-              {toastMessage && (
-                <div className="player-toast">
-                  {toastMessage}
-                </div>
-              )}
+              if (isEmbed) {
+                return (
+                  <div
+                    className="player-video-wrapper controls-visible"
+                    style={{ position: 'relative', overflow: 'hidden' }}
+                  >
+                    <iframe
+                      src={sourceInfo.embedUrl}
+                      title={activeVideo.title}
+                      className="player-video"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                        background: '#000',
+                      }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
 
-              {/* Top Controls Overlay */}
-              <div className="player-overlay-top" onClick={e => e.stopPropagation()}>
-                <button className="player-overlay-btn" onClick={closeVideo} title="Back">
-                  <ChevronLeft size={22} />
-                </button>
-                <div className="player-overlay-title">{activeVideo.title}</div>
-                <button
-                  className="player-overlay-btn"
-                  onClick={() => handleToggleBookmark(activeVideo.id)}
-                  title="Save lesson"
+                    {/* Top Controls Overlay for Embed (Back, Title, Bookmark) */}
+                    <div
+                      className="player-overlay-top"
+                      style={{
+                        opacity: 1,
+                        pointerEvents: 'auto',
+                        background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)',
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <button className="player-overlay-btn" onClick={closeVideo} title="Back">
+                        <ChevronLeft size={22} />
+                      </button>
+                      <div className="player-overlay-title">{activeVideo.title}</div>
+                      <button
+                        className="player-overlay-btn"
+                        onClick={() => handleToggleBookmark(activeVideo.id)}
+                        title="Save lesson"
+                      >
+                        <Bookmark
+                          size={18}
+                          fill={bookmarked ? 'var(--brand)' : 'none'}
+                          color={bookmarked ? 'var(--brand)' : '#fff'}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Toast message overlay on player */}
+                    {toastMessage && (
+                      <div className="player-toast">
+                        {toastMessage}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  className={`player-video-wrapper ${showControls ? 'controls-visible' : 'controls-hidden'}`}
+                  onClick={() => {
+                    if (showControls) setShowControls(false);
+                    else resetControlsTimeout();
+                  }}
+                  onMouseMove={resetControlsTimeout}
                 >
-                  <Bookmark
-                    size={18}
-                    fill={bookmarked ? 'var(--brand)' : 'none'}
-                    color={bookmarked ? 'var(--brand)' : '#fff'}
+                  <video
+                    ref={videoRef}
+                    src={activeVideo.video_url}
+                    className="player-video"
+                    playsInline
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleLoadedMetadata}
+                    onEnded={() => {
+                      setIsPlaying(false);
+                      saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
+                    }}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    autoPlay
                   />
-                </button>
-              </div>
 
-              {/* Center Controls Overlay (10s Rewind, Big Play/Pause, 10s Forward) */}
-              <div className="player-overlay-center" onClick={e => e.stopPropagation()}>
-                <button
-                  className="player-overlay-btn center-skip-btn"
-                  onClick={() => { handleSkip(-10); resetControlsTimeout(); }}
-                  title="Rewind 10s"
-                >
-                  <RotateCcw size={22} />
-                  <span className="skip-sec-text">10s</span>
-                </button>
+                  {/* Toast message overlay on player */}
+                  {toastMessage && (
+                    <div className="player-toast">
+                      {toastMessage}
+                    </div>
+                  )}
 
-                <button
-                  className="player-main-play-btn"
-                  onClick={() => { handleTogglePlay(); resetControlsTimeout(); }}
-                  title={isPlaying ? 'Pause' : 'Play'}
-                >
-                  {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" style={{ marginLeft: 3 }} />}
-                </button>
+                  {/* Top Controls Overlay */}
+                  <div className="player-overlay-top" onClick={e => e.stopPropagation()}>
+                    <button className="player-overlay-btn" onClick={closeVideo} title="Back">
+                      <ChevronLeft size={22} />
+                    </button>
+                    <div className="player-overlay-title">{activeVideo.title}</div>
+                    <button
+                      className="player-overlay-btn"
+                      onClick={() => handleToggleBookmark(activeVideo.id)}
+                      title="Save lesson"
+                    >
+                      <Bookmark
+                        size={18}
+                        fill={bookmarked ? 'var(--brand)' : 'none'}
+                        color={bookmarked ? 'var(--brand)' : '#fff'}
+                      />
+                    </button>
+                  </div>
 
-                <button
-                  className="player-overlay-btn center-skip-btn"
-                  onClick={() => { handleSkip(10); resetControlsTimeout(); }}
-                  title="Forward 10s"
-                >
-                  <RotateCw size={22} />
-                  <span className="skip-sec-text">10s</span>
-                </button>
-              </div>
+                  {/* Center Controls Overlay (10s Rewind, Big Play/Pause, 10s Forward) */}
+                  <div className="player-overlay-center" onClick={e => e.stopPropagation()}>
+                    <button
+                      className="player-overlay-btn center-skip-btn"
+                      onClick={() => {
+                        handleSkip(-10);
+                        resetControlsTimeout();
+                      }}
+                      title="Rewind 10s"
+                    >
+                      <RotateCcw size={22} />
+                      <span className="skip-sec-text">10s</span>
+                    </button>
 
-              {/* Bottom Controls Overlay */}
-              <div className="player-overlay-bottom" onClick={e => e.stopPropagation()}>
-                {/* Touch Scrubber Seek Bar */}
-                <div className="player-scrubber-wrap" onClick={handleSeek}>
-                  <div className="player-scrubber-track">
-                    <div className="player-scrubber-fill" style={{ width: `${progressPct}%` }}>
-                      <div className="player-scrubber-thumb" />
+                    <button
+                      className="player-main-play-btn"
+                      onClick={() => {
+                        handleTogglePlay();
+                        resetControlsTimeout();
+                      }}
+                      title={isPlaying ? 'Pause' : 'Play'}
+                    >
+                      {isPlaying ? (
+                        <Pause size={28} fill="currentColor" />
+                      ) : (
+                        <Play size={28} fill="currentColor" style={{ marginLeft: 3 }} />
+                      )}
+                    </button>
+
+                    <button
+                      className="player-overlay-btn center-skip-btn"
+                      onClick={() => {
+                        handleSkip(10);
+                        resetControlsTimeout();
+                      }}
+                      title="Forward 10s"
+                    >
+                      <RotateCw size={22} />
+                      <span className="skip-sec-text">10s</span>
+                    </button>
+                  </div>
+
+                  {/* Bottom Controls Overlay */}
+                  <div className="player-overlay-bottom" onClick={e => e.stopPropagation()}>
+                    {/* Touch Scrubber Seek Bar */}
+                    <div className="player-scrubber-wrap" onClick={handleSeek}>
+                      <div className="player-scrubber-track">
+                        <div className="player-scrubber-fill" style={{ width: `${progressPct}%` }}>
+                          <div className="player-scrubber-thumb" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="player-bottom-row">
+                      <div className="player-time-text">
+                        <span>{fmt(currentTime)}</span>
+                        <span style={{ opacity: 0.6, margin: '0 4px' }}>/</span>
+                        <span style={{ opacity: 0.8 }}>{fmt(duration)}</span>
+                      </div>
+
+                      <div className="player-bottom-actions">
+                        <button
+                          className="player-overlay-icon-btn"
+                          onClick={() => {
+                            if (videoRef.current) {
+                              videoRef.current.muted = !isMuted;
+                              setIsMuted(!isMuted);
+                            }
+                          }}
+                          title={isMuted ? 'Unmute' : 'Mute'}
+                        >
+                          {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        </button>
+
+                        <button
+                          className="player-speed-badge-btn"
+                          onClick={handleCycleSpeed}
+                          title="Playback Speed"
+                        >
+                          {playbackSpeed}×
+                        </button>
+
+                        <button
+                          className="player-overlay-icon-btn"
+                          onClick={handleFullscreen}
+                          title="Fullscreen"
+                        >
+                          <Maximize size={18} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                <div className="player-bottom-row">
-                  <div className="player-time-text">
-                    <span>{fmt(currentTime)}</span>
-                    <span style={{ opacity: 0.6, margin: '0 4px' }}>/</span>
-                    <span style={{ opacity: 0.8 }}>{fmt(duration)}</span>
-                  </div>
-
-                  <div className="player-bottom-actions">
-                    <button
-                      className="player-overlay-icon-btn"
-                      onClick={() => {
-                        if (videoRef.current) {
-                          videoRef.current.muted = !isMuted;
-                          setIsMuted(!isMuted);
-                        }
-                      }}
-                      title={isMuted ? 'Unmute' : 'Mute'}
-                    >
-                      {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                    </button>
-
-                    <button
-                      className="player-speed-badge-btn"
-                      onClick={handleCycleSpeed}
-                      title="Playback Speed"
-                    >
-                      {playbackSpeed}×
-                    </button>
-
-                    <button
-                      className="player-overlay-icon-btn"
-                      onClick={handleFullscreen}
-                      title="Fullscreen"
-                    >
-                      <Maximize size={18} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Scrollable Lesson Details & Up Next Queue */}
             <div className="player-scroll-content">
@@ -1024,6 +1105,54 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
       <div className="video-thumb-wrap">
         <img src={video.thumbnail_url || 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=400'}
           alt={video.title} className="video-thumb" loading="lazy" />
+        {(() => {
+          const parsed = parseVideoSource(video.video_url);
+          if (parsed.type === 'youtube') {
+            return (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  left: 8,
+                  background: 'rgba(220, 38, 38, 0.92)',
+                  color: '#fff',
+                  fontSize: '0.62rem',
+                  fontWeight: 900,
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  letterSpacing: '0.5px',
+                  zIndex: 2,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                }}
+              >
+                YOUTUBE
+              </span>
+            );
+          }
+          if (parsed.type === 'vimeo') {
+            return (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  left: 8,
+                  background: 'rgba(37, 99, 235, 0.92)',
+                  color: '#fff',
+                  fontSize: '0.62rem',
+                  fontWeight: 900,
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  letterSpacing: '0.5px',
+                  zIndex: 2,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                }}
+              >
+                VIMEO
+              </span>
+            );
+          }
+          return null;
+        })()}
         <div className="video-play-overlay">
           <Play size={22} fill="currentColor" />
         </div>

@@ -340,3 +340,74 @@ export function probeVideoDuration(url: string): Promise<number> {
     }
   });
 }
+
+// ─── Video Link & Source Parser ──────────────────────────────────────────────
+
+export interface VideoSourceInfo {
+  type: 'youtube' | 'vimeo' | 'drive' | 'direct';
+  embedUrl: string;
+  originalUrl: string;
+  videoId?: string;
+  suggestedThumbnail?: string;
+  label: string;
+}
+
+export function parseVideoSource(url: string): VideoSourceInfo {
+  if (!url) {
+    return { type: 'direct', embedUrl: '', originalUrl: '', label: 'Direct Video' };
+  }
+  const cleanUrl = url.trim();
+
+  // 1. YouTube
+  const ytMatch = cleanUrl.match(
+    /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/i
+  );
+  if (ytMatch && ytMatch[1]) {
+    const id = ytMatch[1];
+    return {
+      type: 'youtube',
+      embedUrl: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&playsinline=1`,
+      originalUrl: cleanUrl,
+      videoId: id,
+      suggestedThumbnail: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+      label: 'YouTube',
+    };
+  }
+
+  // 2. Vimeo
+  const vimeoMatch = cleanUrl.match(
+    /(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|)(\d+))/i
+  );
+  if (vimeoMatch && (vimeoMatch[3] || vimeoMatch[1])) {
+    const id = vimeoMatch[3] || vimeoMatch[1];
+    return {
+      type: 'vimeo',
+      embedUrl: `https://player.vimeo.com/video/${id}?autoplay=1`,
+      originalUrl: cleanUrl,
+      videoId: id,
+      label: 'Vimeo',
+    };
+  }
+
+  // 3. Google Drive
+  const driveMatch = cleanUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/i);
+  if (driveMatch && driveMatch[1]) {
+    const id = driveMatch[1];
+    return {
+      type: 'drive',
+      embedUrl: `https://drive.google.com/file/d/${id}/preview`,
+      originalUrl: cleanUrl,
+      videoId: id,
+      label: 'Google Drive',
+    };
+  }
+
+  // 4. Direct / Local
+  return {
+    type: 'direct',
+    embedUrl: cleanUrl,
+    originalUrl: cleanUrl,
+    label: cleanUrl.startsWith('/videos/') ? 'Local File' : 'Direct Link',
+  };
+}
+
