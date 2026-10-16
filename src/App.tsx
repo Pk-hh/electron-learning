@@ -18,6 +18,10 @@ import {
   getLocalProgress,
   getContinueWatching,
   formatDuration,
+  formatTimeAgo,
+  recordDeviceView,
+  saveDetectedDuration,
+  probeVideoDuration,
 } from './services/videoService';
 
 // ── Subject icon map ──────────────────────────────────────────────────────────
@@ -177,6 +181,18 @@ export function App() {
       ]);
       setSubjects(subs);
       setVideos(result.videos);
+
+      // Probe any videos with unknown or default 600s duration in background
+      result.videos.forEach(v => {
+        if ((!v.duration || v.duration === 600) && v.video_url) {
+          probeVideoDuration(v.video_url).then(dur => {
+            if (dur > 0) {
+              saveDetectedDuration(v.id, dur);
+              setVideos(prev => prev.map(item => item.id === v.id ? { ...item, duration: dur } : item));
+            }
+          });
+        }
+      });
     } catch {
       setError('Could not load content. Please check your connection.');
     } finally { setLoading(false); }
@@ -193,15 +209,28 @@ export function App() {
   const openVideo = (video: Video, startSeconds = 0) => {
     const saved = getLocalProgress(video.id);
     const resumeAt = startSeconds > 0 ? startSeconds : (saved?.position ?? 0);
-    setActiveVideo(video); setCurrentTime(resumeAt);
+    setActiveVideo(video);
+    setCurrentTime(resumeAt);
+    setDuration(video.duration || 0);
     setBookmarked(getLocalBookmarks().includes(video.id));
     setIsPlaying(true);
     setShowControls(true);
     setIsDescExpanded(false);
+
+    // Enforce 1 view per device
+    recordDeviceView(video.id).then(isNewView => {
+      if (isNewView) {
+        // First view from this device -> increment count in state immediately!
+        setActiveVideo(prev => prev && prev.id === video.id ? { ...prev, views: (prev.views || 0) + 1 } : prev);
+        setVideos(prev => prev.map(v => v.id === video.id ? { ...v, views: (v.views || 0) + 1 } : v));
+      }
+    });
+
     setTimeout(() => {
       if (videoRef.current) {
         if (resumeAt > 0) videoRef.current.currentTime = resumeAt;
-        videoRef.current.play().catch(() => {}); setIsPlaying(true);
+        videoRef.current.play().catch(() => {});
+        setIsPlaying(true);
       }
     }, 100);
   };
@@ -218,12 +247,27 @@ export function App() {
     else { videoRef.current.play().catch(() => {}); setIsPlaying(true); }
   };
 
+  const handleLoadedMetadata = () => {
+    if (!videoRef.current || !activeVideo) return;
+    const realDur = Math.round(videoRef.current.duration);
+    if (realDur && !isNaN(realDur) && realDur > 0) {
+      setDuration(realDur);
+      saveDetectedDuration(activeVideo.id, realDur);
+      setActiveVideo(prev => prev ? { ...prev, duration: realDur } : null);
+      setVideos(prev => prev.map(v => v.id === activeVideo.id ? { ...v, duration: realDur } : v));
+    }
+  };
+
   const handleTimeUpdate = () => {
     if (!videoRef.current || !activeVideo) return;
     const cur = videoRef.current.currentTime;
-    setCurrentTime(cur); setDuration(videoRef.current.duration || activeVideo.duration);
+    setCurrentTime(cur);
+    const curDur = videoRef.current.duration || activeVideo.duration;
+    if (curDur > 0 && Math.abs(curDur - duration) > 1) {
+      setDuration(Math.round(curDur));
+    }
     if (Math.floor(cur) % 5 === 0)
-      saveLocalProgress(activeVideo.id, cur, videoRef.current.duration || activeVideo.duration);
+      saveLocalProgress(activeVideo.id, cur, curDur);
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -249,9 +293,7 @@ export function App() {
   };
 
   const fmt = (sec: number) => {
-    if (!sec || isNaN(sec)) return '0:00';
-    const m = Math.floor(sec / 60); const s = Math.floor(sec % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
+    return formatDuration(sec);
   };
 
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -485,7 +527,8 @@ export function App() {
                       <Clock size={13} /> {formatDuration(featured.duration)}
                     </span>
                     <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Eye size={13} /> {featured.views.toLocaleString()} views
+                      <Eye size={13} /> {featured.views.toLocaleString()} {featured.views === 1 ? 'view' : 'views'}
+                      {featured.created_at && <span>• {formatTimeAgo(featured.created_at)}</span>}
                     </span>
                     {featured.subject_name && <span className="subject-pill">{featured.subject_name}</span>}
                   </div>
@@ -702,7 +745,7 @@ export function App() {
                 className="player-video"
                 playsInline
                 onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={() => setDuration(videoRef.current?.duration || activeVideo.duration)}
+                onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => {
                   setIsPlaying(false);
                   saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
@@ -834,10 +877,15 @@ export function App() {
                     </span>
                   )}
                   <span className="player-meta-tag">
-                    <Eye size={13} /> {activeVideo.views.toLocaleString()} views
+                    <Eye size={13} /> {activeVideo.views.toLocaleString()} {activeVideo.views === 1 ? 'view' : 'views'}
                   </span>
+                  {activeVideo.created_at && (
+                    <span className="player-meta-tag">
+                      • {formatTimeAgo(activeVideo.created_at)}
+                    </span>
+                  )}
                   <span className="player-meta-tag">
-                    <Clock size={13} /> {formatDuration(activeVideo.duration)}
+                    <Clock size={13} /> {formatDuration(duration || activeVideo.duration)}
                   </span>
                 </div>
               </div>
@@ -912,7 +960,7 @@ export function App() {
                             <div className="up-next-card-title">{v.title}</div>
                             <div className="up-next-card-meta">
                               {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
-                              <span>{v.views.toLocaleString()} views</span>
+                              <span>{v.views.toLocaleString()} {v.views === 1 ? 'view' : 'views'}</span>
                             </div>
                           </div>
                         </div>
@@ -979,7 +1027,12 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
         <div className="video-play-overlay">
           <Play size={22} fill="currentColor" />
         </div>
-        <span className="video-duration"><Clock size={10} style={{ display: 'inline', marginRight: 3 }} />{formatDuration(video.duration)}</span>
+        {video.duration > 0 && (
+          <span className="video-duration">
+            <Clock size={10} style={{ display: 'inline', marginRight: 3 }} />
+            {formatDuration(video.duration)}
+          </span>
+        )}
         {progressPct !== undefined && progressPct > 0 && (
           <div className="video-progress-bar"><div className="video-progress-fill" style={{ width: `${progressPct}%` }} /></div>
         )}
@@ -992,12 +1045,14 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
         </div>
         {video.description && <div className="video-desc">{video.description}</div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem' }}>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Eye size={11} /> {video.views.toLocaleString()} views
+          <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Eye size={11} /> {video.views.toLocaleString()} {video.views === 1 ? 'view' : 'views'}
+            {video.created_at && <span>• {formatTimeAgo(video.created_at)}</span>}
           </span>
           <button className="icon-btn" onClick={e => { e.stopPropagation(); onBookmark(); }}
-            style={{ padding: '0.3rem', color: isBookmarked ? 'var(--brand)' : undefined }}>
-            <Bookmark size={14} fill={isBookmarked ? 'currentColor' : 'none'} />
+            style={{ padding: '0.35rem', color: isBookmarked ? 'var(--brand)' : undefined }}
+            title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}>
+            <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
           </button>
         </div>
       </div>

@@ -5,10 +5,81 @@ import {
   getDoc,
   query,
   where,
+  updateDoc,
+  increment,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Video, Subject } from '../types';
+
+// ─── Local Storage Keys ──────────────────────────────────────────────────────
+const BOOKMARKS_KEY = 'electrON_bookmarks';
+const PROGRESS_KEY = 'electrON_progress';
+const VIEWED_KEY = 'electrON_viewed_videos';
+const DURATIONS_KEY = 'electrON_video_durations';
+
+export function getCachedDurations(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(DURATIONS_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function saveDetectedDuration(videoId: string, durationSec: number): void {
+  if (!videoId || !durationSec || durationSec <= 0) return;
+  try {
+    const map = getCachedDurations();
+    map[videoId] = Math.round(durationSec);
+    localStorage.setItem(DURATIONS_KEY, JSON.stringify(map));
+
+    // Also attempt update in Firestore if possible
+    updateDoc(doc(db, 'videos', videoId), {
+      duration: Math.round(durationSec),
+    }).catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
+// ─── 1 View Per Device Tracking ──────────────────────────────────────────────
+export function hasDeviceViewedVideo(videoId: string): boolean {
+  try {
+    const list: string[] = JSON.parse(localStorage.getItem(VIEWED_KEY) ?? '[]');
+    return list.includes(videoId);
+  } catch {
+    return false;
+  }
+}
+
+export async function recordDeviceView(videoId: string): Promise<boolean> {
+  if (!videoId) return false;
+  try {
+    const list: string[] = JSON.parse(localStorage.getItem(VIEWED_KEY) ?? '[]');
+    if (list.includes(videoId)) {
+      // Already viewed on this device -> enforce 1 view per device
+      return false;
+    }
+
+    // First time view on this device!
+    list.push(videoId);
+    localStorage.setItem(VIEWED_KEY, JSON.stringify(list));
+
+    // Atomically increment views in Firestore
+    try {
+      await updateDoc(doc(db, 'videos', videoId), {
+        views: increment(1),
+      });
+    } catch (fsErr) {
+      console.warn('Firestore views increment warning:', fsErr);
+    }
+
+    return true;
+  } catch (err) {
+    console.warn('recordDeviceView error:', err);
+    return false;
+  }
+}
 
 // ─── Firestore parser ────────────────────────────────────────────────────────
 
@@ -28,6 +99,10 @@ function docToVideo(d: QueryDocumentSnapshot): Video {
     updatedStr = data.updated_at;
   }
 
+  const cachedDurations = getCachedDurations();
+  const rawDur = typeof data.duration === 'number' ? data.duration : (parseInt(data.duration, 10) || 0);
+  const finalDur = (rawDur > 0 && rawDur !== 600) ? rawDur : (cachedDurations[d.id] ?? (rawDur > 0 ? rawDur : 0));
+
   return {
     id: d.id,
     title: data.title ?? '',
@@ -35,11 +110,11 @@ function docToVideo(d: QueryDocumentSnapshot): Video {
     subject_id: data.subject_id ?? '',
     subject_name: data.subject_name ?? '',
     chapter: data.chapter ?? '',
-    duration: typeof data.duration === 'number' ? data.duration : (parseInt(data.duration, 10) || 600),
+    duration: finalDur,
     thumbnail_url: data.thumbnail_url ?? '',
     video_url: data.video_url ?? '',
     status: (data.status ?? 'published') as 'published' | 'draft',
-    views: data.views ?? 0,
+    views: typeof data.views === 'number' ? data.views : 0,
     created_at: createdStr,
     updated_at: updatedStr,
   };
@@ -148,9 +223,6 @@ export async function fetchVideoById(id: string): Promise<Video | null> {
 
 // ─── Local storage helpers ────────────────────────────────────────────────────
 
-const BOOKMARKS_KEY = 'electrON_bookmarks';
-const PROGRESS_KEY = 'electrON_progress';
-
 export function getLocalBookmarks(): string[] {
   try {
     return JSON.parse(localStorage.getItem(BOOKMARKS_KEY) ?? '[]') as string[];
@@ -217,9 +289,54 @@ export function clearLocalHistory(): void {
 
 export function formatDuration(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds || 0));
+  if (total <= 0) return '0:00';
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+export function formatTimeAgo(dateString: string): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSec = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
+
+  if (diffSec < 60) return 'Just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}h ago`;
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffDay === 1) return 'Yesterday';
+  if (diffDay < 7) return `${diffDay}d ago`;
+  const diffWeek = Math.floor(diffDay / 7);
+  if (diffWeek < 5) return `${diffWeek}w ago`;
+  const diffMonth = Math.floor(diffDay / 30);
+  if (diffMonth < 12) return `${diffMonth}mo ago`;
+  const diffYear = Math.floor(diffDay / 365);
+  return `${diffYear}y ago`;
+}
+
+export function probeVideoDuration(url: string): Promise<number> {
+  return new Promise(resolve => {
+    if (!url) return resolve(0);
+    try {
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.src = url;
+      v.onloadedmetadata = () => {
+        if (v.duration && !isNaN(v.duration) && v.duration > 0) {
+          resolve(Math.round(v.duration));
+        } else {
+          resolve(0);
+        }
+      };
+      v.onerror = () => resolve(0);
+      setTimeout(() => resolve(0), 4000);
+    } catch {
+      resolve(0);
+    }
+  });
 }
