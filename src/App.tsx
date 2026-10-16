@@ -5,7 +5,7 @@ import {
   ChevronRight, ChevronLeft, X, SlidersHorizontal, RefreshCw,
   Calculator, Atom, FlaskConical, Dna, Globe2, Languages, Cpu, Music2,
   History, PenTool, BarChart2, Microscope, Layers, GraduationCap,
-  Eye, ListVideo, Star, WifiOff, AlertTriangle, Info,
+  Eye, ListVideo, Star, WifiOff, AlertTriangle, Info, Sparkles,
 } from 'lucide-react';
 import type { Video, Subject } from './types';
 import {
@@ -21,24 +21,24 @@ import {
 
 // ── Subject icon map ──────────────────────────────────────────────────────────
 const SUBJECT_ICONS: Record<string, React.ReactNode> = {
-  math:        <Calculator size={22} />,
-  mathematics: <Calculator size={22} />,
-  physics:     <Atom size={22} />,
-  chemistry:   <FlaskConical size={22} />,
-  biology:     <Dna size={22} />,
-  science:     <Microscope size={22} />,
-  geography:   <Globe2 size={22} />,
-  english:     <Languages size={22} />,
-  computer:    <Cpu size={22} />,
-  music:       <Music2 size={22} />,
-  history:     <History size={22} />,
-  art:         <PenTool size={22} />,
-  economics:   <BarChart2 size={22} />,
+  math:        <Calculator size={20} />,
+  mathematics: <Calculator size={20} />,
+  physics:     <Atom size={20} />,
+  chemistry:   <FlaskConical size={20} />,
+  biology:     <Dna size={20} />,
+  science:     <Microscope size={20} />,
+  geography:   <Globe2 size={20} />,
+  english:     <Languages size={20} />,
+  computer:    <Cpu size={20} />,
+  music:       <Music2 size={20} />,
+  history:     <History size={20} />,
+  art:         <PenTool size={20} />,
+  economics:   <BarChart2 size={20} />,
 };
 
 function getSubjectIcon(subject: Subject) {
   const key = subject.name?.toLowerCase().split(' ')[0] ?? '';
-  return SUBJECT_ICONS[key] ?? <BookOpen size={22} />;
+  return SUBJECT_ICONS[key] ?? <BookOpen size={20} />;
 }
 
 // ── Progress record ───────────────────────────────────────────────────────────
@@ -59,6 +59,7 @@ export function App() {
   const [online, setOnline] = useState(navigator.onLine);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'newest' | 'title' | 'duration' | 'views'>('newest');
 
@@ -219,56 +220,112 @@ export function App() {
 
       {/* ── Navbar ── */}
       <nav className="navbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <div className="brand-badge" onClick={() => setActiveTab('home')}>
-            <img
-              src="/logo.png"
-              alt="electrONLearning Logo"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                objectFit: 'contain',
-                background: '#fff',
-                padding: 2,
-                boxShadow: 'var(--shadow-sm)',
-                border: '1px solid var(--border)',
-              }}
-            />
-            <div>
-              <div className="brand-title">electr<span>ON</span>Learning</div>
-              <div className="brand-tagline">Learn Anytime. Learn Anywhere.</div>
+        {mobileSearchOpen ? (
+          <div className="mobile-search-bar-wrap">
+            <button className="icon-btn" onClick={() => setMobileSearchOpen(false)} title="Close search" style={{ padding: '0.4rem' }}>
+              <ChevronLeft size={22} />
+            </button>
+            <div className="search-box mobile-search-box-active">
+              <Search size={16} color="var(--brand)" />
+              <input
+                className="search-input"
+                type="text"
+                autoFocus
+                placeholder="Search lessons, subjects..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && loadData()}
+              />
+              {searchQuery && (
+                <button
+                  className="icon-btn"
+                  onClick={() => setSearchQuery('')}
+                  style={{ padding: '0.2rem', color: 'var(--text-muted)' }}
+                  title="Clear search"
+                >
+                  <X size={15} />
+                </button>
+              )}
             </div>
           </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+              <div className="brand-badge" onClick={() => { setActiveTab('home'); setSelectedSubjectId(null); }}>
+                <img
+                  src="/logo.png"
+                  alt="electrONLearning Logo"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    objectFit: 'contain',
+                    background: '#fff',
+                    padding: 2,
+                    boxShadow: 'var(--shadow-sm)',
+                    border: '1px solid var(--border)',
+                  }}
+                />
+                <div>
+                  <div className="brand-title">electr<span>ON</span>Learning</div>
+                  <div className="brand-tagline">Learn Anytime. Learn Anywhere.</div>
+                </div>
+              </div>
 
-          <div className="nav-links">
-            <button className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
-              <Home size={15} /> Home
-            </button>
-            <button className={`nav-item ${activeTab === 'library' ? 'active' : ''}`} onClick={() => setActiveTab('library')}>
-              <Library size={15} /> Library
-            </button>
-            <button className={`nav-item ${activeTab === 'bookmarks' ? 'active' : ''}`} onClick={() => { refreshLocalData(); setActiveTab('bookmarks'); }}>
-              <Bookmark size={15} /> Saved
-              {bookmarkIds.length > 0 && (
-                <span style={{ background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontSize: '0.65rem', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-                  {bookmarkIds.length}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
+              <div className="nav-links">
+                <button className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
+                  <Home size={15} /> Home
+                </button>
+                <button className={`nav-item ${activeTab === 'library' ? 'active' : ''}`} onClick={() => setActiveTab('library')}>
+                  <Library size={15} /> Library
+                </button>
+                <button className={`nav-item ${activeTab === 'bookmarks' ? 'active' : ''}`} onClick={() => { refreshLocalData(); setActiveTab('bookmarks'); }}>
+                  <Bookmark size={15} /> Saved
+                  {bookmarkIds.length > 0 && (
+                    <span style={{ background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontSize: '0.65rem', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+                      {bookmarkIds.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="search-box">
-            <Search size={15} color="var(--text-muted)" />
-            <input className="search-input" type="text" placeholder="Search lessons, topics..." value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadData()} />
-          </div>
-          <button className="icon-btn" onClick={loadData} title="Refresh" style={{ padding: '0.5rem' }}>
-            <RefreshCw size={16} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
-          </button>
-        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div className="search-box desktop-search-box">
+                <Search size={15} color="var(--text-muted)" />
+                <input
+                  className="search-input"
+                  type="text"
+                  placeholder="Search lessons, topics..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && loadData()}
+                />
+                {searchQuery && (
+                  <button
+                    className="icon-btn"
+                    onClick={() => setSearchQuery('')}
+                    style={{ padding: '0.2rem', color: 'var(--text-muted)' }}
+                    title="Clear"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+              <button
+                className="icon-btn mobile-search-btn"
+                onClick={() => setMobileSearchOpen(true)}
+                title="Search"
+                aria-label="Search"
+              >
+                <Search size={19} />
+              </button>
+              <button className="icon-btn" onClick={loadData} title="Refresh" style={{ padding: '0.5rem' }}>
+                <RefreshCw size={16} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+              </button>
+            </div>
+          </>
+        )}
       </nav>
 
       {/* ── Main ── */}
@@ -295,7 +352,34 @@ export function App() {
 
         {/* ── HOME ── */}
         {!loading && !error && activeTab === 'home' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+            {/* Quick Horizontal Subject Carousel */}
+            {subjects.length > 0 && (
+              <div className="subject-chips-bar">
+                <button
+                  className={`subject-chip ${!selectedSubjectId ? 'active' : ''}`}
+                  onClick={() => { setSelectedSubjectId(null); setActiveTab('library'); }}
+                >
+                  <Sparkles size={14} />
+                  <span>All Lessons</span>
+                  <span className="chip-badge">{videos.length}</span>
+                </button>
+                {subjects.map(s => {
+                  const isSelected = selectedSubjectId === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      className={`subject-chip ${isSelected ? 'active' : ''}`}
+                      onClick={() => { setSelectedSubjectId(s.id); setActiveTab('library'); }}
+                    >
+                      <span className="chip-icon">{getSubjectIcon(s)}</span>
+                      <span>{s.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Featured Hero */}
             {featured && (
@@ -314,10 +398,10 @@ export function App() {
                       <Bookmark size={14} fill={bookmarkIds.includes(featured.id) ? 'currentColor' : 'none'} />
                       {bookmarkIds.includes(featured.id) ? 'Saved' : 'Save'}
                     </button>
-                    <span style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
                       <Clock size={13} /> {formatDuration(featured.duration)}
                     </span>
-                    <span style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
                       <Eye size={13} /> {featured.views.toLocaleString()} views
                     </span>
                     {featured.subject_name && <span className="subject-pill">{featured.subject_name}</span>}
@@ -408,33 +492,79 @@ export function App() {
 
         {/* ── LIBRARY ── */}
         {!loading && !error && activeTab === 'library' && (
-          <div>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.75rem', alignItems: 'center' }}>
-              <h2 className="section-title"><ListVideo size={18} color="var(--brand)" /> Video Library</h2>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginLeft: 'auto', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="library-header-row">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <h2 className="section-title"><ListVideo size={20} color="var(--brand)" /> Video Library</h2>
+                <span className="library-count-pill">{filteredVideos.length} {filteredVideos.length === 1 ? 'lesson' : 'lessons'}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <SlidersHorizontal size={15} color="var(--text-muted)" />
-                <select className="filter-select" value={selectedSubjectId ?? ''} onChange={e => setSelectedSubjectId(e.target.value || null)}>
-                  <option value="">All Subjects</option>
-                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
                 <select className="filter-select" value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}>
-                  <option value="newest">Newest</option>
+                  <option value="newest">Newest First</option>
                   <option value="views">Most Viewed</option>
-                  <option value="title">A–Z</option>
-                  <option value="duration">Duration</option>
+                  <option value="title">A–Z (Alphabetical)</option>
+                  <option value="duration">Longest First</option>
                 </select>
                 {selectedSubjectId && (
-                  <button className="btn-secondary" onClick={() => setSelectedSubjectId(null)} style={{ borderRadius: 50 }}>
+                  <button className="btn-secondary" onClick={() => setSelectedSubjectId(null)} style={{ borderRadius: 50, padding: '0.35rem 0.85rem' }}>
                     <X size={13} /> Clear Filter
                   </button>
                 )}
               </div>
             </div>
 
+            {/* Horizontal Scrollable Subject Chips Bar */}
+            {subjects.length > 0 && (
+              <div className="subject-chips-bar">
+                <button
+                  className={`subject-chip ${!selectedSubjectId ? 'active' : ''}`}
+                  onClick={() => setSelectedSubjectId(null)}
+                >
+                  <Sparkles size={14} />
+                  <span>All Subjects</span>
+                  <span className="chip-badge">{videos.length}</span>
+                </button>
+                {subjects.map(s => {
+                  const isSelected = selectedSubjectId === s.id;
+                  const count = videos.filter(v => {
+                    const vidSubjId = (v.subject_id ?? '').toLowerCase().trim();
+                    const vidSubjName = (v.subject_name ?? '').toLowerCase().trim();
+                    const targetId = s.id.toLowerCase().trim();
+                    const targetName = (s.name ?? '').toLowerCase().trim();
+                    return (
+                      (targetId && vidSubjId === targetId) ||
+                      (targetName && vidSubjName === targetName) ||
+                      (targetName && vidSubjId === targetName) ||
+                      (targetId && vidSubjName === targetId) ||
+                      (targetName && vidSubjName.includes(targetName)) ||
+                      (vidSubjName && targetName.includes(vidSubjName))
+                    );
+                  }).length;
+
+                  return (
+                    <button
+                      key={s.id}
+                      className={`subject-chip ${isSelected ? 'active' : ''}`}
+                      onClick={() => setSelectedSubjectId(isSelected ? null : s.id)}
+                    >
+                      <span className="chip-icon">{getSubjectIcon(s)}</span>
+                      <span>{s.name}</span>
+                      {count > 0 && <span className="chip-badge">{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {filteredVideos.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '5rem', color: 'var(--text-muted)' }}>
+              <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-muted)' }}>
                 <Search size={48} style={{ marginBottom: '1rem', opacity: 0.4 }} />
-                <p style={{ fontWeight: 600 }}>No videos match your criteria</p>
+                <p style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>No lessons match your search</p>
+                <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>Try choosing another subject or clearing your filter.</p>
+                <button className="btn-secondary" onClick={() => { setSelectedSubjectId(null); setSearchQuery(''); }} style={{ marginTop: '1rem', borderRadius: 50 }}>
+                  Reset all filters
+                </button>
               </div>
             ) : (
               <div className="video-grid">
@@ -476,24 +606,30 @@ export function App() {
 
             {/* Header */}
             <div className="player-header">
+              <button className="icon-btn player-back-btn" onClick={closeVideo} title="Back">
+                <ChevronLeft size={22} />
+              </button>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="player-title">{activeVideo.title}</div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.3rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.2rem' }}>
                   {activeVideo.subject_name && <span className="subject-pill">{activeVideo.subject_name}</span>}
                   {activeVideo.chapter && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><BookOpen size={12} /> {activeVideo.chapter}</span>}
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Eye size={12} /> {activeVideo.views.toLocaleString()} views</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-                <button className="icon-btn" onClick={() => handleToggleBookmark(activeVideo.id)} title="Bookmark">
-                  <Bookmark size={17} fill={bookmarked ? 'var(--brand)' : 'none'} color={bookmarked ? 'var(--brand)' : 'currentColor'} />
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexShrink: 0 }}>
+                <button className="icon-btn" onClick={() => handleToggleBookmark(activeVideo.id)} title="Bookmark" style={{ padding: '0.5rem' }}>
+                  <Bookmark size={18} fill={bookmarked ? 'var(--brand)' : 'none'} color={bookmarked ? 'var(--brand)' : 'currentColor'} />
                 </button>
-                <button className="icon-btn" onClick={closeVideo} title="Close"><X size={19} /></button>
+                <button className="icon-btn player-close-btn" onClick={closeVideo} title="Close" style={{ padding: '0.5rem' }}>
+                  <X size={20} />
+                </button>
               </div>
             </div>
 
             {/* Video */}
             <video ref={videoRef} src={activeVideo.video_url} className="player-video"
+              playsInline
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={() => setDuration(videoRef.current?.duration || activeVideo.duration)}
               onEnded={() => { setIsPlaying(false); saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration); }}
@@ -505,7 +641,7 @@ export function App() {
               <div className="progress-bar" onClick={handleSeek}>
                 <div className="progress-fill" style={{ width: `${progressPct}%` }} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: '0.8rem', fontWeight: 600 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.8rem', fontWeight: 600 }}>
                 <span>{fmt(currentTime)}</span>
                 <span>{fmt(duration)}</span>
               </div>
@@ -518,7 +654,7 @@ export function App() {
                 <button className="icon-btn" onClick={() => handleSkip(-10)} title="Back 10s">
                   <RotateCcw size={17} />
                 </button>
-                <button className="icon-btn play-btn" onClick={handleTogglePlay}>
+                <button className="icon-btn play-btn" onClick={handleTogglePlay} title={isPlaying ? 'Pause' : 'Play'}>
                   {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
                 </button>
                 <button className="icon-btn" onClick={() => handleSkip(10)} title="Forward 10s">
@@ -528,7 +664,7 @@ export function App() {
                   <ChevronRight size={18} />
                 </button>
 
-                <button className="icon-btn" onClick={() => { if (videoRef.current) { videoRef.current.muted = !isMuted; setIsMuted(!isMuted); } }}>
+                <button className="icon-btn" onClick={() => { if (videoRef.current) { videoRef.current.muted = !isMuted; setIsMuted(!isMuted); } }} title={isMuted ? 'Unmute' : 'Mute'}>
                   {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
                 </button>
 
@@ -546,9 +682,39 @@ export function App() {
 
             {/* Description */}
             {activeVideo.description && (
-              <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6, display: 'flex', gap: '0.5rem' }}>
+              <div style={{ padding: '1rem 1.4rem', borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6, display: 'flex', gap: '0.5rem' }}>
                 <Info size={16} style={{ flexShrink: 0, marginTop: 2, color: 'var(--brand)' }} />
-                {activeVideo.description}
+                <span>{activeVideo.description}</span>
+              </div>
+            )}
+
+            {/* Up Next in Player */}
+            {videos.filter(v => v.id !== activeVideo.id).length > 0 && (
+              <div className="player-up-next">
+                <div className="player-up-next-title">
+                  <ListVideo size={16} color="var(--brand)" /> Up Next Lessons
+                </div>
+                <div className="up-next-list">
+                  {videos
+                    .filter(v => v.id !== activeVideo.id && (v.subject_id === activeVideo.subject_id || !activeVideo.subject_id))
+                    .concat(videos.filter(v => v.id !== activeVideo.id && v.subject_id !== activeVideo.subject_id))
+                    .slice(0, 4)
+                    .map(v => (
+                      <div key={v.id} className="up-next-item" onClick={() => openVideo(v)}>
+                        <div className="up-next-thumb-wrap">
+                          <img src={v.thumbnail_url || 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=200'} alt={v.title} className="up-next-thumb" />
+                          <span className="up-next-duration">{formatDuration(v.duration)}</span>
+                        </div>
+                        <div className="up-next-details">
+                          <div className="up-next-name">{v.title}</div>
+                          <div className="up-next-meta">
+                            {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
+                            <span>{v.views.toLocaleString()} views</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
               </div>
             )}
           </div>
@@ -560,7 +726,7 @@ export function App() {
           className={`mobile-nav-item ${activeTab === 'home' ? 'active' : ''}`}
           onClick={() => { setActiveTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         >
-          <Home size={20} />
+          <Home size={21} />
           <span>Home</span>
         </button>
 
@@ -568,7 +734,7 @@ export function App() {
           className={`mobile-nav-item ${activeTab === 'library' ? 'active' : ''}`}
           onClick={() => { setActiveTab('library'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         >
-          <Library size={20} />
+          <Library size={21} />
           <span>Library</span>
         </button>
 
@@ -576,13 +742,15 @@ export function App() {
           className={`mobile-nav-item ${activeTab === 'bookmarks' ? 'active' : ''}`}
           onClick={() => { refreshLocalData(); setActiveTab('bookmarks'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         >
-          <Bookmark size={20} />
+          <div style={{ position: 'relative', display: 'inline-flex' }}>
+            <Bookmark size={21} />
+            {bookmarkIds.length > 0 && (
+              <span className="mobile-nav-badge">
+                {bookmarkIds.length}
+              </span>
+            )}
+          </div>
           <span>Saved</span>
-          {bookmarkIds.length > 0 && (
-            <span style={{ position: 'absolute', top: 6, right: '28%', background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontSize: '0.6rem', width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-              {bookmarkIds.length}
-            </span>
-          )}
         </button>
       </nav>
     </div>
