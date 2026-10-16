@@ -6,6 +6,7 @@ import {
   Calculator, Atom, FlaskConical, Dna, Globe2, Languages, Cpu, Music2,
   History, PenTool, BarChart2, Microscope, Layers, GraduationCap,
   Eye, ListVideo, Star, WifiOff, AlertTriangle, Info, Sparkles,
+  Share2, Zap, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import type { Video, Subject } from './types';
 import {
@@ -66,7 +67,7 @@ export function App() {
   const [continueWatching, setContinueWatching] = useState<ProgressRecord[]>([]);
   const [bookmarkIds, setBookmarkIds] = useState<string[]>([]);
 
-  // Player
+  // Player state
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
@@ -74,8 +75,88 @@ export function App() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const controlsTimeoutRef = useRef<any>(null);
+
+  // Auto-hide overlay controls after 3.5 seconds of playback
+  const resetControlsTimeout = useCallback(() => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3500);
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      resetControlsTimeout();
+    } else {
+      setShowControls(true);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    }
+    return () => {
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    };
+  }, [isPlaying, resetControlsTimeout]);
+
+  // Toast message helper
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2200);
+  };
+
+  // Speed cycler (1x -> 1.25x -> 1.5x -> 2x -> 0.75x)
+  const SPEEDS = [1.0, 1.25, 1.5, 2.0, 0.75];
+  const handleCycleSpeed = () => {
+    const curIdx = SPEEDS.indexOf(playbackSpeed);
+    const next = SPEEDS[(curIdx + 1) % SPEEDS.length];
+    setPlaybackSpeed(next);
+    if (videoRef.current) videoRef.current.playbackRate = next;
+    showToast(`${next}× Speed`);
+    resetControlsTimeout();
+  };
+
+  // Native mobile share sheet or copy link
+  const handleShare = async (video: Video) => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: video.title,
+          text: `Watch "${video.title}" on electrONLearning`,
+          url: url,
+        });
+      } catch {
+        // Dismissed share sheet
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('Link copied to clipboard!');
+      } catch {
+        showToast('Lesson ready to share');
+      }
+    }
+  };
+
+  // Cross-browser Fullscreen (supporting iOS Safari & Android Chrome)
+  const handleFullscreen = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.requestFullscreen) {
+      v.requestFullscreen().catch(() => {});
+    } else if ((v as any).webkitEnterFullscreen) {
+      (v as any).webkitEnterFullscreen();
+    } else if ((v as any).webkitRequestFullscreen) {
+      (v as any).webkitRequestFullscreen();
+    }
+  };
 
   // network status
   useEffect(() => {
@@ -114,6 +195,9 @@ export function App() {
     const resumeAt = startSeconds > 0 ? startSeconds : (saved?.position ?? 0);
     setActiveVideo(video); setCurrentTime(resumeAt);
     setBookmarked(getLocalBookmarks().includes(video.id));
+    setIsPlaying(true);
+    setShowControls(true);
+    setIsDescExpanded(false);
     setTimeout(() => {
       if (videoRef.current) {
         if (resumeAt > 0) videoRef.current.currentTime = resumeAt;
@@ -147,23 +231,22 @@ export function App() {
     const rect = e.currentTarget.getBoundingClientRect();
     const target = ((e.clientX - rect.left) / rect.width) * (videoRef.current.duration || 1);
     videoRef.current.currentTime = target; setCurrentTime(target);
+    resetControlsTimeout();
   };
 
   const handleSkip = (secs: number) => {
     if (!videoRef.current) return;
     const target = Math.max(0, Math.min(videoRef.current.duration, videoRef.current.currentTime + secs));
     videoRef.current.currentTime = target; setCurrentTime(target);
+    resetControlsTimeout();
   };
 
   const handleToggleBookmark = (videoId: string) => {
     const isNow = toggleLocalBookmark(videoId);
     if (activeVideo?.id === videoId) setBookmarked(isNow);
     refreshLocalData();
+    showToast(isNow ? 'Saved to Bookmarks' : 'Removed from Bookmarks');
   };
-
-  const currentIndex = activeVideo ? videos.findIndex(v => v.id === activeVideo.id) : -1;
-  const prevVideo = currentIndex > 0 ? videos[currentIndex - 1] : null;
-  const nextVideo = currentIndex >= 0 && currentIndex < videos.length - 1 ? videos[currentIndex + 1] : null;
 
   const fmt = (sec: number) => {
     if (!sec || isNaN(sec)) return '0:00';
@@ -599,124 +682,245 @@ export function App() {
         )}
       </main>
 
-      {/* ── Video Player Modal ── */}
+      {/* ── Video Player Modal / Page (Cinema & Touch-Optimized) ── */}
       {activeVideo && (
         <div className="player-modal-overlay" onClick={closeVideo}>
           <div className="player-modal" onClick={e => e.stopPropagation()}>
 
-            {/* Header */}
-            <div className="player-header">
-              <button className="icon-btn player-back-btn" onClick={closeVideo} title="Back">
-                <ChevronLeft size={22} />
-              </button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="player-title">{activeVideo.title}</div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.2rem' }}>
-                  {activeVideo.subject_name && <span className="subject-pill">{activeVideo.subject_name}</span>}
-                  {activeVideo.chapter && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><BookOpen size={12} /> {activeVideo.chapter}</span>}
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Eye size={12} /> {activeVideo.views.toLocaleString()} views</span>
+            {/* Video Container (Sticky 16:9 Cinema Player) */}
+            <div
+              className={`player-video-wrapper ${showControls ? 'controls-visible' : 'controls-hidden'}`}
+              onClick={() => {
+                if (showControls) setShowControls(false);
+                else resetControlsTimeout();
+              }}
+              onMouseMove={resetControlsTimeout}
+            >
+              <video
+                ref={videoRef}
+                src={activeVideo.video_url}
+                className="player-video"
+                playsInline
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={() => setDuration(videoRef.current?.duration || activeVideo.duration)}
+                onEnded={() => {
+                  setIsPlaying(false);
+                  saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
+                }}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                autoPlay
+              />
+
+              {/* Toast message overlay on player */}
+              {toastMessage && (
+                <div className="player-toast">
+                  {toastMessage}
                 </div>
+              )}
+
+              {/* Top Controls Overlay */}
+              <div className="player-overlay-top" onClick={e => e.stopPropagation()}>
+                <button className="player-overlay-btn" onClick={closeVideo} title="Back">
+                  <ChevronLeft size={22} />
+                </button>
+                <div className="player-overlay-title">{activeVideo.title}</div>
+                <button
+                  className="player-overlay-btn"
+                  onClick={() => handleToggleBookmark(activeVideo.id)}
+                  title="Save lesson"
+                >
+                  <Bookmark
+                    size={18}
+                    fill={bookmarked ? 'var(--brand)' : 'none'}
+                    color={bookmarked ? 'var(--brand)' : '#fff'}
+                  />
+                </button>
               </div>
-              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexShrink: 0 }}>
-                <button className="icon-btn" onClick={() => handleToggleBookmark(activeVideo.id)} title="Bookmark" style={{ padding: '0.5rem' }}>
-                  <Bookmark size={18} fill={bookmarked ? 'var(--brand)' : 'none'} color={bookmarked ? 'var(--brand)' : 'currentColor'} />
+
+              {/* Center Controls Overlay (10s Rewind, Big Play/Pause, 10s Forward) */}
+              <div className="player-overlay-center" onClick={e => e.stopPropagation()}>
+                <button
+                  className="player-overlay-btn center-skip-btn"
+                  onClick={() => { handleSkip(-10); resetControlsTimeout(); }}
+                  title="Rewind 10s"
+                >
+                  <RotateCcw size={22} />
+                  <span className="skip-sec-text">10s</span>
                 </button>
-                <button className="icon-btn player-close-btn" onClick={closeVideo} title="Close" style={{ padding: '0.5rem' }}>
-                  <X size={20} />
+
+                <button
+                  className="player-main-play-btn"
+                  onClick={() => { handleTogglePlay(); resetControlsTimeout(); }}
+                  title={isPlaying ? 'Pause' : 'Play'}
+                >
+                  {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" style={{ marginLeft: 3 }} />}
                 </button>
+
+                <button
+                  className="player-overlay-btn center-skip-btn"
+                  onClick={() => { handleSkip(10); resetControlsTimeout(); }}
+                  title="Forward 10s"
+                >
+                  <RotateCw size={22} />
+                  <span className="skip-sec-text">10s</span>
+                </button>
+              </div>
+
+              {/* Bottom Controls Overlay */}
+              <div className="player-overlay-bottom" onClick={e => e.stopPropagation()}>
+                {/* Touch Scrubber Seek Bar */}
+                <div className="player-scrubber-wrap" onClick={handleSeek}>
+                  <div className="player-scrubber-track">
+                    <div className="player-scrubber-fill" style={{ width: `${progressPct}%` }}>
+                      <div className="player-scrubber-thumb" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="player-bottom-row">
+                  <div className="player-time-text">
+                    <span>{fmt(currentTime)}</span>
+                    <span style={{ opacity: 0.6, margin: '0 4px' }}>/</span>
+                    <span style={{ opacity: 0.8 }}>{fmt(duration)}</span>
+                  </div>
+
+                  <div className="player-bottom-actions">
+                    <button
+                      className="player-overlay-icon-btn"
+                      onClick={() => {
+                        if (videoRef.current) {
+                          videoRef.current.muted = !isMuted;
+                          setIsMuted(!isMuted);
+                        }
+                      }}
+                      title={isMuted ? 'Unmute' : 'Mute'}
+                    >
+                      {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    </button>
+
+                    <button
+                      className="player-speed-badge-btn"
+                      onClick={handleCycleSpeed}
+                      title="Playback Speed"
+                    >
+                      {playbackSpeed}×
+                    </button>
+
+                    <button
+                      className="player-overlay-icon-btn"
+                      onClick={handleFullscreen}
+                      title="Fullscreen"
+                    >
+                      <Maximize size={18} />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Video */}
-            <video ref={videoRef} src={activeVideo.video_url} className="player-video"
-              playsInline
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={() => setDuration(videoRef.current?.duration || activeVideo.duration)}
-              onEnded={() => { setIsPlaying(false); saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration); }}
-              onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} autoPlay />
-
-            {/* Controls */}
-            <div className="player-controls">
-              {/* Seek bar */}
-              <div className="progress-bar" onClick={handleSeek}>
-                <div className="progress-fill" style={{ width: `${progressPct}%` }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.8rem', fontWeight: 600 }}>
-                <span>{fmt(currentTime)}</span>
-                <span>{fmt(duration)}</span>
-              </div>
-
-              {/* Button row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button className="icon-btn" onClick={() => prevVideo && openVideo(prevVideo)} disabled={!prevVideo} title="Previous lesson">
-                  <ChevronLeft size={18} />
-                </button>
-                <button className="icon-btn" onClick={() => handleSkip(-10)} title="Back 10s">
-                  <RotateCcw size={17} />
-                </button>
-                <button className="icon-btn play-btn" onClick={handleTogglePlay} title={isPlaying ? 'Pause' : 'Play'}>
-                  {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-                </button>
-                <button className="icon-btn" onClick={() => handleSkip(10)} title="Forward 10s">
-                  <RotateCw size={17} />
-                </button>
-                <button className="icon-btn" onClick={() => nextVideo && openVideo(nextVideo)} disabled={!nextVideo} title="Next lesson">
-                  <ChevronRight size={18} />
-                </button>
-
-                <button className="icon-btn" onClick={() => { if (videoRef.current) { videoRef.current.muted = !isMuted; setIsMuted(!isMuted); } }} title={isMuted ? 'Unmute' : 'Mute'}>
-                  {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-                </button>
-
-                <select className="filter-select" value={playbackSpeed}
-                  onChange={e => { const s = Number(e.target.value); if (videoRef.current) videoRef.current.playbackRate = s; setPlaybackSpeed(s); }}
-                  style={{ marginLeft: 'auto', fontSize: '0.8rem', padding: '0.3rem 0.7rem' }}>
-                  {[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(s => <option key={s} value={s}>{s}×</option>)}
-                </select>
-
-                <button className="icon-btn" onClick={() => videoRef.current?.requestFullscreen?.()} title="Fullscreen">
-                  <Maximize size={17} />
-                </button>
-              </div>
-            </div>
-
-            {/* Description */}
-            {activeVideo.description && (
-              <div style={{ padding: '1rem 1.4rem', borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6, display: 'flex', gap: '0.5rem' }}>
-                <Info size={16} style={{ flexShrink: 0, marginTop: 2, color: 'var(--brand)' }} />
-                <span>{activeVideo.description}</span>
-              </div>
-            )}
-
-            {/* Up Next in Player */}
-            {videos.filter(v => v.id !== activeVideo.id).length > 0 && (
-              <div className="player-up-next">
-                <div className="player-up-next-title">
-                  <ListVideo size={16} color="var(--brand)" /> Up Next Lessons
+            {/* Scrollable Lesson Details & Up Next Queue */}
+            <div className="player-scroll-content">
+              {/* Lesson Title & Main Metadata */}
+              <div className="player-info-section">
+                <h1 className="player-detail-title">{activeVideo.title}</h1>
+                <div className="player-detail-meta">
+                  {activeVideo.subject_name && (
+                    <span className="subject-pill highlight">{activeVideo.subject_name}</span>
+                  )}
+                  {activeVideo.chapter && (
+                    <span className="player-meta-tag">
+                      <BookOpen size={13} color="var(--brand)" /> {activeVideo.chapter}
+                    </span>
+                  )}
+                  <span className="player-meta-tag">
+                    <Eye size={13} /> {activeVideo.views.toLocaleString()} views
+                  </span>
+                  <span className="player-meta-tag">
+                    <Clock size={13} /> {formatDuration(activeVideo.duration)}
+                  </span>
                 </div>
-                <div className="up-next-list">
-                  {videos
-                    .filter(v => v.id !== activeVideo.id && (v.subject_id === activeVideo.subject_id || !activeVideo.subject_id))
-                    .concat(videos.filter(v => v.id !== activeVideo.id && v.subject_id !== activeVideo.subject_id))
-                    .slice(0, 4)
-                    .map(v => (
-                      <div key={v.id} className="up-next-item" onClick={() => openVideo(v)}>
-                        <div className="up-next-thumb-wrap">
-                          <img src={v.thumbnail_url || 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=200'} alt={v.title} className="up-next-thumb" />
-                          <span className="up-next-duration">{formatDuration(v.duration)}</span>
-                        </div>
-                        <div className="up-next-details">
-                          <div className="up-next-name">{v.title}</div>
-                          <div className="up-next-meta">
-                            {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
-                            <span>{v.views.toLocaleString()} views</span>
+              </div>
+
+              {/* Action Bar (Bookmark, Speed, Share, Fullscreen) */}
+              <div className="player-action-bar">
+                <button
+                  className={`player-action-item ${bookmarked ? 'active' : ''}`}
+                  onClick={() => handleToggleBookmark(activeVideo.id)}
+                >
+                  <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
+                  <span>{bookmarked ? 'Saved' : 'Save'}</span>
+                </button>
+
+                <button className="player-action-item" onClick={handleCycleSpeed}>
+                  <Zap size={18} color="var(--brand)" />
+                  <span>{playbackSpeed}× Speed</span>
+                </button>
+
+                <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
+                  <Share2 size={18} />
+                  <span>Share</span>
+                </button>
+
+                <button className="player-action-item" onClick={handleFullscreen}>
+                  <Maximize size={18} />
+                  <span>Fullscreen</span>
+                </button>
+              </div>
+
+              {/* Lesson Description (Collapsible Card) */}
+              {activeVideo.description && (
+                <div className="player-desc-card" onClick={() => setIsDescExpanded(!isDescExpanded)}>
+                  <div className="player-desc-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: '0.88rem' }}>
+                      <Info size={15} color="var(--brand)" /> About this Lesson
+                    </div>
+                    {isDescExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  <div className={`player-desc-body ${isDescExpanded ? 'expanded' : 'collapsed'}`}>
+                    {activeVideo.description}
+                  </div>
+                </div>
+              )}
+
+              {/* Up Next in Subject / Recommended Queue */}
+              {videos.filter(v => v.id !== activeVideo.id).length > 0 && (
+                <div className="player-up-next-section">
+                  <div className="player-up-next-heading">
+                    <ListVideo size={18} color="var(--brand)" />
+                    <span>Up Next in this Course</span>
+                  </div>
+                  <div className="up-next-cards-list">
+                    {videos
+                      .filter(v => v.id !== activeVideo.id && (v.subject_id === activeVideo.subject_id || !activeVideo.subject_id))
+                      .concat(videos.filter(v => v.id !== activeVideo.id && v.subject_id !== activeVideo.subject_id))
+                      .map((v, idx) => (
+                        <div key={v.id} className="up-next-video-card" onClick={() => openVideo(v)}>
+                          <div className="up-next-card-thumb-wrap">
+                            <img
+                              src={v.thumbnail_url || 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=260'}
+                              alt={v.title}
+                              className="up-next-card-thumb"
+                            />
+                            <span className="up-next-badge-duration">{formatDuration(v.duration)}</span>
+                            <div className="up-next-play-hover">
+                              <Play size={16} fill="#fff" />
+                            </div>
+                          </div>
+                          <div className="up-next-card-content">
+                            <span className="up-next-lesson-num">Lesson {idx + 1}</span>
+                            <div className="up-next-card-title">{v.title}</div>
+                            <div className="up-next-card-meta">
+                              {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
+                              <span>{v.views.toLocaleString()} views</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
