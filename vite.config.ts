@@ -106,5 +106,6 @@ function listVideosPlugin(): Plugin {
 }
 
 export default defineConfig({
+  base: './',
   plugins: [react(), listVideosPlugin()],
 })

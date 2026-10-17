@@ -325,6 +325,15 @@ export function App() {
   };
 
   const handleTogglePlay = () => {
+    if (iframeRef.current?.contentWindow) {
+      if (isPlaying) {
+        sendYTCommand('pauseVideo');
+        setIsPlaying(false);
+      } else {
+        sendYTCommand('playVideo');
+        setIsPlaying(true);
+      }
+    }
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
       videoRef.current.play()
@@ -360,17 +369,28 @@ export function App() {
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const total = duration || videoRef.current.duration || 600;
+    const total = duration || (videoRef.current ? videoRef.current.duration : 600);
     const target = pct * total;
+    if (iframeRef.current?.contentWindow) {
+      sendYTCommand('seekTo', [target, true]);
+      setCurrentTime(target);
+      resetControlsTimeout();
+    }
+    if (!videoRef.current) return;
     videoRef.current.currentTime = target;
     setCurrentTime(target);
     resetControlsTimeout();
   };
 
   const handleSkip = (secs: number) => {
+    if (iframeRef.current?.contentWindow) {
+      const target = Math.max(0, Math.min(duration || 600, currentTime + secs));
+      sendYTCommand('seekTo', [target, true]);
+      setCurrentTime(target);
+      resetControlsTimeout();
+    }
     if (!videoRef.current) return;
     const maxDur = videoRef.current.duration || duration || 600;
     const target = Math.max(0, Math.min(maxDur, videoRef.current.currentTime + secs));
@@ -380,10 +400,14 @@ export function App() {
   };
 
   const handleToggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (iframeRef.current?.contentWindow) {
+      sendYTCommand(nextMuted ? 'mute' : 'unMute');
     }
-    setIsMuted(!isMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = nextMuted;
+    }
   };
 
   const handleToggleBookmark = (videoId: string) => {
@@ -903,13 +927,20 @@ export function App() {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
               const rawTitle = (activeVideo.title || '').toLowerCase();
               const rawUrl = (activeVideo.video_url || '').toLowerCase();
-              let videoSrc = sourceInfo.directStreamUrl || activeVideo.video_url;
 
+              // Resolve video source (FastStart MP4 or source URL)
+              let videoSrc: string | null = null;
               if (rawTitle.includes('logic') || rawUrl.includes('logic') || rawUrl.includes('qrtveulopqq')) {
-                videoSrc = '/videos/logic_gates.mp4';
+                videoSrc = './videos/logic_gates.mp4';
               } else if (rawTitle.includes('diode') || rawTitle.includes('junction') || rawTitle.includes('chatrcter') || rawUrl.includes('junction') || rawUrl.includes('1j3hce2') || rawUrl.includes('1akjgei')) {
-                videoSrc = '/videos/pn_junction_diode.mp4';
+                videoSrc = './videos/pn_junction_diode.mp4';
+              } else if (sourceInfo.type === 'direct') {
+                videoSrc = sourceInfo.directStreamUrl || activeVideo.video_url;
               }
+
+              // On cloud streaming links without local video, stream with our custom player UI on top
+              const renderYouTubeStream = !videoSrc && (sourceInfo.type === 'youtube' || fallbackToIframe);
+              const renderDriveStream = !videoSrc && sourceInfo.type === 'drive';
 
               return (
                 <div
@@ -921,21 +952,43 @@ export function App() {
                   }}
                   onMouseMove={resetControlsTimeout}
                 >
-                  <video
-                    ref={videoRef}
-                    src={videoSrc}
-                    className="player-video"
-                    playsInline
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    onEnded={() => {
-                      setIsPlaying(false);
-                      saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
-                    }}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    autoPlay
-                  />
+                  {renderYouTubeStream ? (
+                    <iframe
+                      ref={iframeRef}
+                      src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=${window.location.origin}`}
+                      title={activeVideo.title}
+                      className="player-video youtube-player-frame"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : renderDriveStream ? (
+                    <iframe
+                      src={sourceInfo.embedUrl}
+                      title={activeVideo.title}
+                      className="player-video drive-player-frame"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      ref={videoRef}
+                      src={videoSrc || activeVideo.video_url}
+                      className="player-video"
+                      playsInline
+                      onTimeUpdate={handleTimeUpdate}
+                      onLoadedMetadata={handleLoadedMetadata}
+                      onEnded={() => {
+                        setIsPlaying(false);
+                        saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
+                      }}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      autoPlay
+                      onError={() => {
+                        setFallbackToIframe(true);
+                      }}
+                    />
+                  )}
 
                   {/* Toast message overlay on player */}
                   {toastMessage && (

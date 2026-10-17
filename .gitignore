@@ -29,3 +29,4 @@ dist-ssr
 *.mov
 *.mkv
 !public/videos/pn_junction_diode.mp4
+!public/videos/logic_gates.mp4
