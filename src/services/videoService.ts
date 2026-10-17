@@ -16,6 +16,7 @@ import type { Video, Subject } from '../types';
 const BOOKMARKS_KEY = 'electrON_bookmarks';
 const PROGRESS_KEY = 'electrON_progress';
 const VIEWED_KEY = 'electrON_viewed_videos';
+const LOCAL_VIEWS_MAP_KEY = 'electrON_local_views_map';
 const DURATIONS_KEY = 'electrON_video_durations';
 
 export function getCachedDurations(): Record<string, number> {
@@ -42,6 +43,21 @@ export function saveDetectedDuration(videoId: string, durationSec: number): void
   }
 }
 
+// ─── Local Views Storage Map ──────────────────────────────────────────────────
+export function getLocalViewsMap(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_VIEWS_MAP_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function saveLocalViewsMap(map: Record<string, number>): void {
+  try {
+    localStorage.setItem(LOCAL_VIEWS_MAP_KEY, JSON.stringify(map));
+  } catch {}
+}
+
 // ─── 1 View Per Device Tracking ──────────────────────────────────────────────
 export function hasDeviceViewedVideo(videoId: string): boolean {
   try {
@@ -52,18 +68,29 @@ export function hasDeviceViewedVideo(videoId: string): boolean {
   }
 }
 
-export async function recordDeviceView(videoId: string): Promise<boolean> {
+export async function recordDeviceView(videoId: string, currentViews: number = 0): Promise<boolean> {
   if (!videoId) return false;
   try {
     const list: string[] = JSON.parse(localStorage.getItem(VIEWED_KEY) ?? '[]');
+    const localMap = getLocalViewsMap();
+
     if (list.includes(videoId)) {
       // Already viewed on this device -> enforce 1 view per device
+      if (!localMap[videoId]) {
+        localMap[videoId] = Math.max(currentViews, 1);
+        saveLocalViewsMap(localMap);
+      }
       return false;
     }
 
     // First time view on this device!
     list.push(videoId);
     localStorage.setItem(VIEWED_KEY, JSON.stringify(list));
+
+    // Update local views count immediately
+    const updatedCount = Math.max(currentViews, localMap[videoId] || 0) + 1;
+    localMap[videoId] = updatedCount;
+    saveLocalViewsMap(localMap);
 
     // Atomically increment views in Firestore
     try {
@@ -83,25 +110,54 @@ export async function recordDeviceView(videoId: string): Promise<boolean> {
 
 // ─── Firestore parser ────────────────────────────────────────────────────────
 
+export function parseCreatedDate(raw: any): string {
+  if (!raw) return new Date(Date.now() - 3600000).toISOString();
+  try {
+    // 1. Firestore Timestamp instance
+    if (raw && typeof raw.toDate === 'function') {
+      return raw.toDate().toISOString();
+    }
+    // 2. Serialized Firestore Timestamp object { seconds, nanoseconds }
+    if (raw && typeof raw.seconds === 'number') {
+      return new Date(raw.seconds * 1000).toISOString();
+    }
+    // 3. Numeric epoch timestamp
+    if (typeof raw === 'number') {
+      return new Date(raw).toISOString();
+    }
+    // 4. ISO or date string
+    if (typeof raw === 'string') {
+      const p = new Date(raw);
+      if (!isNaN(p.getTime())) {
+        return p.toISOString();
+      }
+    }
+  } catch {}
+  return new Date().toISOString();
+}
+
 function docToVideo(d: QueryDocumentSnapshot): Video {
   const data = d.data();
-  let createdStr = new Date().toISOString();
-  if (data.created_at?.toDate) {
-    createdStr = data.created_at.toDate().toISOString();
-  } else if (typeof data.created_at === 'string') {
-    createdStr = data.created_at;
-  }
-
-  let updatedStr = new Date().toISOString();
-  if (data.updated_at?.toDate) {
-    updatedStr = data.updated_at.toDate().toISOString();
-  } else if (typeof data.updated_at === 'string') {
-    updatedStr = data.updated_at;
-  }
+  const createdStr = parseCreatedDate(data.created_at);
+  const updatedStr = parseCreatedDate(data.updated_at || data.created_at);
 
   const cachedDurations = getCachedDurations();
   const rawDur = typeof data.duration === 'number' ? data.duration : (parseInt(data.duration, 10) || 0);
-  const finalDur = (rawDur > 0 && rawDur !== 600) ? rawDur : (cachedDurations[d.id] ?? (rawDur > 0 ? rawDur : 0));
+
+  // If raw duration is 0 or unprobed, check cached duration.
+  // For link/external videos, if not cached yet, default to 600 (10 min) so duration badge is never missing
+  const isLinkOrYT = data.video_url?.startsWith('http') || (data.video_url && !data.video_url.startsWith('/videos/'));
+  const finalDur = (rawDur > 0 && rawDur !== 600)
+    ? rawDur
+    : (cachedDurations[d.id] ?? (rawDur > 0 ? rawDur : (isLinkOrYT ? 600 : 0)));
+
+  // Views handling: 1 view per device guarantee
+  const firestoreViews = typeof data.views === 'number' ? data.views : (parseInt(data.views, 10) || 0);
+  const localMap = getLocalViewsMap();
+  const hasViewed = hasDeviceViewedVideo(d.id);
+  const localKnown = localMap[d.id] ?? 0;
+  // Ensure that if this device viewed the video, it shows at least 1 view or known local views
+  const finalViews = Math.max(firestoreViews, localKnown, hasViewed ? 1 : 0);
 
   return {
     id: d.id,
@@ -114,7 +170,7 @@ function docToVideo(d: QueryDocumentSnapshot): Video {
     thumbnail_url: data.thumbnail_url ?? '',
     video_url: data.video_url ?? '',
     status: (data.status ?? 'published') as 'published' | 'draft',
-    views: typeof data.views === 'number' ? data.views : 0,
+    views: finalViews,
     created_at: createdStr,
     updated_at: updatedStr,
   };
@@ -297,13 +353,33 @@ export function formatDuration(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function formatTimeAgo(dateString: string): string {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffSec = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
+export function formatViewsCount(views: number = 0): string {
+  const count = Math.max(0, Math.floor(views || 0));
+  if (count === 1) return '1 view';
+  if (count < 1000) return `${count} views`;
+  if (count < 1000000) {
+    const k = (count / 1000).toFixed(1).replace(/\.0$/, '');
+    return `${k}K views`;
+  }
+  const m = (count / 1000000).toFixed(1).replace(/\.0$/, '');
+  return `${m}M views`;
+}
 
-  if (diffSec < 60) return 'Just now';
+export function formatTimeAgo(dateInput?: string | number | Date | null): string {
+  if (!dateInput) return 'Recently';
+  let date: Date;
+  if (dateInput instanceof Date) {
+    date = dateInput;
+  } else if (typeof dateInput === 'number') {
+    date = new Date(dateInput);
+  } else {
+    date = new Date(dateInput);
+  }
+  if (isNaN(date.getTime())) return 'Recently';
+
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (diffSec < 45) return 'Just now';
   const diffMin = Math.floor(diffSec / 60);
   if (diffMin < 60) return `${diffMin}m ago`;
   const diffHour = Math.floor(diffMin / 60);
@@ -366,7 +442,7 @@ export function parseVideoSource(url: string): VideoSourceInfo {
     const id = ytMatch[1];
     return {
       type: 'youtube',
-      embedUrl: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1`,
       originalUrl: cleanUrl,
       videoId: id,
       suggestedThumbnail: `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,

@@ -19,6 +19,7 @@ import {
   getContinueWatching,
   formatDuration,
   formatTimeAgo,
+  formatViewsCount,
   recordDeviceView,
   saveDetectedDuration,
   probeVideoDuration,
@@ -219,7 +220,7 @@ export function App() {
     setIsDescExpanded(false);
 
     // Enforce 1 view per device
-    recordDeviceView(video.id).then(isNewView => {
+    recordDeviceView(video.id, video.views).then(isNewView => {
       if (isNewView) {
         // First view from this device -> increment count in state immediately!
         setActiveVideo(prev => prev && prev.id === video.id ? { ...prev, views: (prev.views || 0) + 1 } : prev);
@@ -235,6 +236,29 @@ export function App() {
       }
     }, 100);
   };
+
+  // Listen for YouTube IFrame postMessage events to dynamically capture exact duration
+  useEffect(() => {
+    const handleYTMessage = (e: MessageEvent) => {
+      try {
+        let data = e.data;
+        if (typeof data === 'string') {
+          data = JSON.parse(data);
+        }
+        if ((data?.event === 'infoDelivery' || data?.event === 'initialDelivery') && data?.info?.duration) {
+          const ytDur = Math.round(Number(data.info.duration));
+          if (ytDur > 0 && activeVideo) {
+            setDuration(ytDur);
+            saveDetectedDuration(activeVideo.id, ytDur);
+            setActiveVideo(prev => (prev && prev.id === activeVideo.id ? { ...prev, duration: ytDur } : prev));
+            setVideos(prev => prev.map(v => (v.id === activeVideo.id ? { ...v, duration: ytDur } : v)));
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener('message', handleYTMessage);
+    return () => window.removeEventListener('message', handleYTMessage);
+  }, [activeVideo?.id]);
 
   const closeVideo = () => {
     if (activeVideo && videoRef.current)
@@ -525,10 +549,10 @@ export function App() {
                       {bookmarkIds.includes(featured.id) ? 'Saved' : 'Save'}
                     </button>
                     <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Clock size={13} /> {formatDuration(featured.duration)}
+                      <Clock size={13} /> {formatDuration(featured.duration || 600)}
                     </span>
                     <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Eye size={13} /> {featured.views.toLocaleString()} {featured.views === 1 ? 'view' : 'views'}
+                      <Eye size={13} /> {formatViewsCount(featured.views)}
                       {featured.created_at && <span>• {formatTimeAgo(featured.created_at)}</span>}
                     </span>
                     {featured.subject_name && <span className="subject-pill">{featured.subject_name}</span>}
@@ -974,7 +998,7 @@ export function App() {
                     </span>
                   )}
                   <span className="player-meta-tag">
-                    <Eye size={13} /> {activeVideo.views.toLocaleString()} {activeVideo.views === 1 ? 'view' : 'views'}
+                    <Eye size={13} /> {formatViewsCount(activeVideo.views)}
                   </span>
                   {activeVideo.created_at && (
                     <span className="player-meta-tag">
@@ -982,7 +1006,7 @@ export function App() {
                     </span>
                   )}
                   <span className="player-meta-tag">
-                    <Clock size={13} /> {formatDuration(duration || activeVideo.duration)}
+                    <Clock size={13} /> {formatDuration(duration || activeVideo.duration || 600)}
                   </span>
                 </div>
               </div>
@@ -1103,7 +1127,7 @@ export function App() {
                               alt={v.title}
                               className="up-next-card-thumb"
                             />
-                            <span className="up-next-badge-duration">{formatDuration(v.duration)}</span>
+                            <span className="up-next-badge-duration">{formatDuration(v.duration || 600)}</span>
                             <div className="up-next-play-hover">
                               <Play size={16} fill="#fff" />
                             </div>
@@ -1113,7 +1137,7 @@ export function App() {
                             <div className="up-next-card-title">{v.title}</div>
                             <div className="up-next-card-meta">
                               {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
-                              <span>{v.views.toLocaleString()} {v.views === 1 ? 'view' : 'views'}</span>
+                              <span>{formatViewsCount(v.views)}</span>
                             </div>
                           </div>
                         </div>
@@ -1230,12 +1254,10 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
         <div className="video-play-overlay">
           <Play size={22} fill="currentColor" />
         </div>
-        {video.duration > 0 && (
-          <span className="video-duration">
-            <Clock size={10} style={{ display: 'inline', marginRight: 3 }} />
-            {formatDuration(video.duration)}
-          </span>
-        )}
+        <span className="video-duration">
+          <Clock size={10} style={{ display: 'inline', marginRight: 3 }} />
+          {formatDuration(video.duration || 600)}
+        </span>
         {progressPct !== undefined && progressPct > 0 && (
           <div className="video-progress-bar"><div className="video-progress-fill" style={{ width: `${progressPct}%` }} /></div>
         )}
@@ -1249,7 +1271,7 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
         {video.description && <div className="video-desc">{video.description}</div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem' }}>
           <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Eye size={11} /> {video.views.toLocaleString()} {video.views === 1 ? 'view' : 'views'}
+            <Eye size={11} /> {formatViewsCount(video.views)}
             {video.created_at && <span>• {formatTimeAgo(video.created_at)}</span>}
           </span>
           <button className="icon-btn" onClick={e => { e.stopPropagation(); onBookmark(); }}
