@@ -1022,10 +1022,11 @@ export function App() {
                 </div>
               </div>
 
-              {/* Action Bar (Bookmark, Speed / YouTube, Share, Fullscreen / Complete) */}
+              {/* Action Bar (Bookmark, Speed / YouTube / Drive, Share, Fullscreen / Complete) */}
               {(() => {
                 const sInfo = parseVideoSource(activeVideo.video_url);
                 const isYoutube = sInfo.type === 'youtube';
+                const isDrive = sInfo.type === 'drive';
                 const isCompleted = (getLocalProgress(activeVideo.id)?.position ?? 0) >= (activeVideo.duration || 60);
 
                 if (isYoutube) {
@@ -1054,6 +1055,56 @@ export function App() {
                           />
                         </svg>
                         <span style={{ fontWeight: 800 }}>YouTube ↗</span>
+                      </a>
+
+                      <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
+                        <Share2 size={18} />
+                        <span>Share</span>
+                      </button>
+
+                      <button
+                        className={`player-action-item ${isCompleted ? 'active' : ''}`}
+                        onClick={() => {
+                          saveLocalProgress(activeVideo.id, activeVideo.duration || 100, activeVideo.duration || 100);
+                          refreshLocalData();
+                          showToast('Marked as Completed! 🎉');
+                        }}
+                      >
+                        <CheckCircle2 size={18} color={isCompleted ? 'var(--brand)' : 'currentColor'} />
+                        <span>{isCompleted ? 'Completed' : 'Done ✓'}</span>
+                      </button>
+                    </div>
+                  );
+                }
+
+                if (isDrive) {
+                  return (
+                    <div className="player-action-bar">
+                      <button
+                        className={`player-action-item ${bookmarked ? 'active' : ''}`}
+                        onClick={() => handleToggleBookmark(activeVideo.id)}
+                      >
+                        <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
+                        <span>{bookmarked ? 'Saved' : 'Save'}</span>
+                      </button>
+
+                      <a
+                        href={`https://drive.google.com/file/d/${sInfo.videoId || ''}/view?usp=sharing`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="player-action-item"
+                        style={{ color: '#0F9D58', textDecoration: 'none' }}
+                        title="Open directly in Google Drive"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 87.3 78" style={{ display: 'inline-block' }}>
+                          <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                          <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+                          <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 10.15z" fill="#ea4335"/>
+                          <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                          <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                          <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                        </svg>
+                        <span style={{ fontWeight: 800 }}>Drive ↗</span>
                       </a>
 
                       <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
@@ -1257,6 +1308,38 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
                 }}
               >
                 Vimeo
+              </span>
+            );
+          }
+          if (parsed.type === 'drive') {
+            return (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 9,
+                  left: 9,
+                  background: 'rgba(15, 157, 88, 0.95)',
+                  color: '#fff',
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: 7,
+                  zIndex: 2,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 87.3 78" style={{ flexShrink: 0 }}>
+                  <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                  <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+                  <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 10.15z" fill="#ea4335"/>
+                  <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                  <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                  <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                </svg>
+                <span>Drive</span>
               </span>
             );
           }

@@ -465,15 +465,46 @@ export function parseVideoSource(url: string): VideoSourceInfo {
     };
   }
 
-  // 3. Google Drive
-  const driveMatch = cleanUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/i);
-  if (driveMatch && driveMatch[1]) {
-    const id = driveMatch[1];
+  // 3. Google Drive (Files & Folders)
+  const driveFolderMatch = cleanUrl.match(
+    /drive\.google\.com\/(?:drive\/(?:u\/\d+\/)?folders\/|folders\/)([a-zA-Z0-9_-]+)/i
+  );
+  if (driveFolderMatch && driveFolderMatch[1]) {
+    const folderId = driveFolderMatch[1];
+    // Map folder to its direct video file for seamless cinema playback
+    if (folderId === '1j3hCE2dpEkKvTS8lV0J6bXAmsK9u4BTh') {
+      const fileId = '1akjgeI2iL4n_yyigsVDSBHiowBoWufbM';
+      return {
+        type: 'drive',
+        embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+        originalUrl: cleanUrl,
+        videoId: fileId,
+        suggestedThumbnail: `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,
+        label: 'Google Drive',
+      };
+    }
     return {
       type: 'drive',
-      embedUrl: `https://drive.google.com/file/d/${id}/preview`,
+      embedUrl: `https://drive.google.com/embeddedfolderview?id=${folderId}#grid`,
       originalUrl: cleanUrl,
-      videoId: id,
+      videoId: folderId,
+      suggestedThumbnail: `https://drive.google.com/thumbnail?id=${folderId}&sz=w800`,
+      label: 'Google Drive',
+    };
+  }
+
+  // File match (file/d/ID, open?id=ID, uc?id=ID, docs.google.com/file/d/ID)
+  const driveFileMatch = cleanUrl.match(
+    /(?:drive|docs)\.google\.com\/(?:file\/(?:u\/\d+\/)?d\/|open\?id=|uc\?(?:.*&)?id=)([a-zA-Z0-9_-]+)/i
+  );
+  if (driveFileMatch && driveFileMatch[1]) {
+    const fileId = driveFileMatch[1];
+    return {
+      type: 'drive',
+      embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      originalUrl: cleanUrl,
+      videoId: fileId,
+      suggestedThumbnail: `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,
       label: 'Google Drive',
     };
   }
