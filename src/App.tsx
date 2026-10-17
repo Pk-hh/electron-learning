@@ -6,7 +6,7 @@ import {
   Calculator, Atom, FlaskConical, Dna, Globe2, Languages, Cpu, Music2,
   History, PenTool, BarChart2, Microscope, Layers, GraduationCap,
   Eye, ListVideo, Star, WifiOff, AlertTriangle, Info, Sparkles,
-  Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
+  Share2, Zap, ChevronDown, ChevronUp, CheckCircle2,
 } from 'lucide-react';
 import type { Video, Subject } from './types';
 import {
@@ -86,7 +86,6 @@ export function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const embedContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsTimeoutRef = useRef<any>(null);
 
   // Auto-hide overlay controls after 3.5 seconds of playback
@@ -162,21 +161,6 @@ export function App() {
       (v as any).webkitEnterFullscreen();
     } else if ((v as any).webkitRequestFullscreen) {
       (v as any).webkitRequestFullscreen();
-    }
-  };
-
-  // Fullscreen for Embedded players (Google Drive & YouTube)
-  const handleToggleIframeFullscreen = () => {
-    const el = embedContainerRef.current;
-    if (!el) return;
-    if (document.fullscreenElement) {
-      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
-    } else {
-      if (el.requestFullscreen) {
-        el.requestFullscreen().catch(() => {});
-      } else if ((el as any).webkitRequestFullscreen) {
-        (el as any).webkitRequestFullscreen();
-      }
     }
   };
 
@@ -775,7 +759,7 @@ export function App() {
             <div className="player-modal-nav">
               <button className="player-nav-btn" onClick={closeVideo} title="Back to lessons">
                 <ChevronLeft size={18} />
-                <span>Back</span>
+                <span className="btn-label-desktop">Back</span>
               </button>
 
               <div className="player-nav-title-group">
@@ -791,13 +775,13 @@ export function App() {
                             d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
                           />
                         </svg>
-                        YouTube
+                        <span className="btn-label-desktop">YouTube</span>
                       </span>
                     );
                   }
                   if (sInfo.type === 'drive') {
                     return (
-                      <span className="player-nav-badge drive">
+                      <span className="player-nav-badge drive" title="Google Drive Video">
                         <svg width="12" height="12" viewBox="0 0 87.3 78">
                           <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
                           <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
@@ -806,7 +790,7 @@ export function App() {
                           <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
                           <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
                         </svg>
-                        Google Drive
+                        <span className="btn-label-desktop">Google Drive</span>
                       </span>
                     );
                   }
@@ -816,7 +800,7 @@ export function App() {
 
               <div className="player-nav-actions">
                 <button
-                  className={`player-nav-btn bookmark-btn ${bookmarked ? 'bookmarked' : ''}`}
+                  className={`player-nav-btn bookmark-btn btn-label-desktop ${bookmarked ? 'bookmarked' : ''}`}
                   onClick={() => handleToggleBookmark(activeVideo.id)}
                   title={bookmarked ? 'Saved to bookmarks' : 'Bookmark lesson'}
                 >
@@ -825,7 +809,7 @@ export function App() {
                     fill={bookmarked ? 'var(--brand)' : 'none'}
                     color={bookmarked ? 'var(--brand)' : 'currentColor'}
                   />
-                  <span className="btn-label-desktop">{bookmarked ? 'Saved' : 'Save'}</span>
+                  <span>{bookmarked ? 'Saved' : 'Save'}</span>
                 </button>
                 <button
                   className="player-nav-btn"
@@ -847,7 +831,6 @@ export function App() {
               if (isEmbed) {
                 return (
                   <div
-                    ref={embedContainerRef}
                     className={`player-video-wrapper ${isDrive ? 'drive-container' : 'youtube-container'}`}
                     style={{ position: 'relative', overflow: 'hidden' }}
                   >
@@ -858,19 +841,6 @@ export function App() {
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
-
-                    {/* Drive Floating Fullscreen Control */}
-                    {isDrive && (
-                      <button
-                        className="drive-fullscreen-floating-btn"
-                        onClick={handleToggleIframeFullscreen}
-                        title="Toggle Fullscreen"
-                        aria-label="Toggle Fullscreen"
-                      >
-                        <Maximize size={15} />
-                        <span>Fullscreen</span>
-                      </button>
-                    )}
 
                     {/* Toast message overlay on player */}
                     {toastMessage && (
@@ -1077,102 +1047,51 @@ export function App() {
 
                 if (isDrive) {
                   return (
-                    <>
-                      {/* Drive Assist Card on Mobile & Desktop */}
-                      <div className="drive-assist-banner">
-                        <div className="drive-assist-info">
-                          <div className="drive-assist-icon-wrap">
-                            <svg width="22" height="22" viewBox="0 0 87.3 78">
-                              <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                              <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
-                              <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 10.15z" fill="#ea4335"/>
-                              <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                              <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                              <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                            </svg>
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div className="drive-assist-title">Streaming from Google Drive</div>
-                            <div className="drive-assist-sub">For best experience on phones, tap Fullscreen or open in Google Drive app</div>
-                          </div>
-                        </div>
-                        <div className="drive-assist-actions">
-                          <button
-                            className="drive-assist-btn fullscreen-btn"
-                            onClick={handleToggleIframeFullscreen}
-                            title="Toggle Fullscreen"
-                          >
-                            <Maximize size={15} />
-                            <span>Expand Fullscreen</span>
-                          </button>
-                          <a
-                            href={`https://drive.google.com/file/d/${sInfo.videoId || ''}/view?usp=sharing`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="drive-assist-btn app-btn"
-                            title="Open directly in Google Drive app"
-                          >
-                            <ExternalLink size={15} />
-                            <span>Open in Drive App</span>
-                          </a>
-                        </div>
-                      </div>
+                    <div className="player-action-bar">
+                      <button
+                        className={`player-action-item ${bookmarked ? 'active' : ''}`}
+                        onClick={() => handleToggleBookmark(activeVideo.id)}
+                      >
+                        <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
+                        <span>{bookmarked ? 'Saved' : 'Save'}</span>
+                      </button>
 
-                      <div className="player-action-bar drive-bar">
-                        <button
-                          className={`player-action-item ${bookmarked ? 'active' : ''}`}
-                          onClick={() => handleToggleBookmark(activeVideo.id)}
-                        >
-                          <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
-                          <span>{bookmarked ? 'Saved' : 'Save'}</span>
-                        </button>
+                      <a
+                        href={`https://drive.google.com/file/d/${sInfo.videoId || ''}/view?usp=sharing`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="player-action-item"
+                        style={{ color: '#0F9D58', textDecoration: 'none' }}
+                        title="Open directly in Google Drive app"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 87.3 78" style={{ display: 'inline-block' }}>
+                          <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                          <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+                          <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 10.15z" fill="#ea4335"/>
+                          <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                          <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                          <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                        </svg>
+                        <span style={{ fontWeight: 800 }}>Drive App ↗</span>
+                      </a>
 
-                        <button
-                          className="player-action-item"
-                          onClick={handleToggleIframeFullscreen}
-                          title="Toggle Fullscreen"
-                        >
-                          <Maximize size={18} />
-                          <span>Fullscreen</span>
-                        </button>
+                      <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
+                        <Share2 size={18} />
+                        <span>Share</span>
+                      </button>
 
-                        <a
-                          href={`https://drive.google.com/file/d/${sInfo.videoId || ''}/view?usp=sharing`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="player-action-item"
-                          style={{ color: '#0F9D58', textDecoration: 'none' }}
-                          title="Open directly in Google Drive app"
-                        >
-                          <svg width="18" height="18" viewBox="0 0 87.3 78" style={{ display: 'inline-block' }}>
-                            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
-                            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 10.15z" fill="#ea4335"/>
-                            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                          </svg>
-                          <span style={{ fontWeight: 800 }}>Drive App ↗</span>
-                        </a>
-
-                        <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
-                          <Share2 size={18} />
-                          <span>Share</span>
-                        </button>
-
-                        <button
-                          className={`player-action-item ${isCompleted ? 'active' : ''}`}
-                          onClick={() => {
-                            saveLocalProgress(activeVideo.id, activeVideo.duration || 100, activeVideo.duration || 100);
-                            refreshLocalData();
-                            showToast('Marked as Completed! 🎉');
-                          }}
-                        >
-                          <CheckCircle2 size={18} color={isCompleted ? 'var(--brand)' : 'currentColor'} />
-                          <span>{isCompleted ? 'Completed' : 'Done ✓'}</span>
-                        </button>
-                      </div>
-                    </>
+                      <button
+                        className={`player-action-item ${isCompleted ? 'active' : ''}`}
+                        onClick={() => {
+                          saveLocalProgress(activeVideo.id, activeVideo.duration || 100, activeVideo.duration || 100);
+                          refreshLocalData();
+                          showToast('Marked as Completed! 🎉');
+                        }}
+                      >
+                        <CheckCircle2 size={18} color={isCompleted ? 'var(--brand)' : 'currentColor'} />
+                        <span>{isCompleted ? 'Completed' : 'Done ✓'}</span>
+                      </button>
+                    </div>
                   );
                 }
 

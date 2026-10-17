@@ -781,39 +781,6 @@ body {
   background: #000;
 }
 
-.drive-fullscreen-floating-btn {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #fff;
-  padding: 5px 11px;
-  border-radius: 20px;
-  font-size: 0.73rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  z-index: 15;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-  transition: all 0.18s ease;
-  user-select: none;
-}
-
-.drive-fullscreen-floating-btn:hover {
-  background: var(--brand);
-  border-color: var(--brand);
-  transform: scale(1.04);
-}
-
-.drive-fullscreen-floating-btn:active {
-  transform: scale(0.95);
-}
-
 /* ── YouTube Badge on Video Cards ── */
 .youtube-card-badge {
   position: absolute;
@@ -1194,104 +1161,6 @@ body {
   background: var(--brand-light);
   border-color: var(--brand);
   color: var(--brand-dark);
-}
-
-/* ── Google Drive Assist Banner ── */
-.drive-assist-banner {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  background: linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%);
-  border: 1.5px solid #A7F3D0;
-  border-radius: 14px;
-  padding: 0.85rem 1rem;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
-}
-
-.drive-assist-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.drive-assist-icon-wrap {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  flex-shrink: 0;
-}
-
-.drive-assist-title {
-  font-size: 0.86rem;
-  font-weight: 800;
-  color: #065F46;
-  line-height: 1.25;
-}
-
-.drive-assist-sub {
-  font-size: 0.73rem;
-  color: #047857;
-  margin-top: 2px;
-}
-
-.drive-assist-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-}
-
-.drive-assist-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0.55rem 0.75rem;
-  border-radius: 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.18s ease;
-  font-family: inherit;
-  user-select: none;
-}
-
-.drive-assist-btn.fullscreen-btn {
-  background: #065F46;
-  color: #ffffff;
-  border: none;
-}
-
-.drive-assist-btn.fullscreen-btn:hover {
-  background: #047857;
-}
-
-.drive-assist-btn.fullscreen-btn:active {
-  transform: scale(0.96);
-}
-
-.drive-assist-btn.app-btn {
-  background: #ffffff;
-  color: #065F46;
-  border: 1.5px solid #6EE7B7;
-}
-
-.drive-assist-btn.app-btn:hover {
-  background: #E6FFFA;
-  border-color: #34D399;
-}
-
-.drive-assist-btn.app-btn:active {
-  transform: scale(0.96);
-}
-
-.player-action-bar.drive-bar {
-  grid-template-columns: repeat(5, 1fr);
 }
 
 /* Lesson Description Card */
@@ -1688,26 +1557,53 @@ body {
   }
 
   .player-modal-nav {
-    padding: 0.65rem 0.85rem;
+    padding: 0.55rem 0.75rem;
     background: #150800;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .player-nav-title-group {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
   }
 
   .player-top-lesson-title {
     color: #fff;
-    font-size: 0.84rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .player-nav-btn {
     background: rgba(255, 255, 255, 0.12);
     color: #fff;
     border-color: rgba(255, 255, 255, 0.22);
-    padding: 0.4rem 0.65rem;
+    padding: 0;
     font-size: 0.78rem;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .player-nav-badge {
+    padding: 3px 6px;
+    font-size: 0.65rem;
   }
 
   .btn-label-desktop {
-    display: none;
+    display: none !important;
   }
 
   .player-video-wrapper {
@@ -1753,37 +1649,20 @@ body {
 
   .player-action-bar {
     grid-template-columns: repeat(4, 1fr);
-    gap: 0.4rem;
-  }
-
-  .player-action-bar.drive-bar {
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.35rem;
-  }
-
-  .player-action-bar.drive-bar .player-action-item {
-    padding: 0.5rem 0.15rem;
-    font-size: 0.67rem;
-  }
-
-  .drive-assist-banner {
-    padding: 0.75rem 0.85rem;
-    gap: 0.65rem;
-  }
-
-  .drive-assist-actions {
-    grid-template-columns: 1fr 1fr;
     gap: 0.45rem;
-  }
-
-  .drive-assist-btn {
-    padding: 0.5rem 0.4rem;
-    font-size: 0.74rem;
+    padding: 0.65rem 0;
   }
 
   .player-action-item {
-    padding: 0.55rem 0.2rem;
-    font-size: 0.7rem;
+    padding: 0.6rem 0.2rem;
+    font-size: 0.72rem;
+  }
+
+  .player-action-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   .up-next-card-thumb-wrap {
