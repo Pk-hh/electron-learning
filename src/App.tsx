@@ -825,19 +825,19 @@ export function App() {
             {/* Video Container (Sticky Cinema Player) */}
             {(() => {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
-              const isEmbed = sourceInfo.type !== 'direct';
-              const isDrive = sourceInfo.type === 'drive';
+              // Only YouTube & Vimeo require external iframe embed
+              const isIframe = sourceInfo.type === 'youtube' || sourceInfo.type === 'vimeo';
 
-              if (isEmbed) {
+              if (isIframe) {
                 return (
                   <div
-                    className={`player-video-wrapper ${isDrive ? 'drive-container' : 'youtube-container'}`}
+                    className="player-video-wrapper youtube-container"
                     style={{ position: 'relative', overflow: 'hidden' }}
                   >
                     <iframe
                       src={sourceInfo.embedUrl}
                       title={activeVideo.title}
-                      className={`player-video ${isDrive ? 'drive-player-frame' : 'youtube-player-frame'}`}
+                      className="player-video youtube-player-frame"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
@@ -852,6 +852,9 @@ export function App() {
                 );
               }
 
+              // Google Drive & Local MP4 Videos use our Custom Native Cinema Player!
+              const videoSrc = sourceInfo.directStreamUrl || sourceInfo.embedUrl || activeVideo.video_url;
+
               return (
                 <div
                   className={`player-video-wrapper ${showControls ? 'controls-visible' : 'controls-hidden'}`}
@@ -863,7 +866,7 @@ export function App() {
                 >
                   <video
                     ref={videoRef}
-                    src={sourceInfo.embedUrl || activeVideo.video_url}
+                    src={videoSrc}
                     className="player-video"
                     playsInline
                     onTimeUpdate={handleTimeUpdate}

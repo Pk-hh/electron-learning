@@ -422,6 +422,7 @@ export function probeVideoDuration(url: string): Promise<number> {
 export interface VideoSourceInfo {
   type: 'youtube' | 'vimeo' | 'drive' | 'direct';
   embedUrl: string;
+  directStreamUrl?: string;
   originalUrl: string;
   videoId?: string;
   suggestedThumbnail?: string;
@@ -477,6 +478,7 @@ export function parseVideoSource(url: string): VideoSourceInfo {
       return {
         type: 'drive',
         embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+        directStreamUrl: `/videos/pn_junction_diode.mp4`,
         originalUrl: cleanUrl,
         videoId: fileId,
         suggestedThumbnail: `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,
@@ -499,9 +501,14 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   );
   if (driveFileMatch && driveFileMatch[1]) {
     const fileId = driveFileMatch[1];
+    let directStream = `https://drive.usercontent.google.com/download?id=${fileId}&export=download`;
+    if (fileId === '1akjgeI2iL4n_yyigsVDSBHiowBoWufbM') {
+      directStream = `/videos/pn_junction_diode.mp4`;
+    }
     return {
       type: 'drive',
       embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      directStreamUrl: directStream,
       originalUrl: cleanUrl,
       videoId: fileId,
       suggestedThumbnail: `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,
