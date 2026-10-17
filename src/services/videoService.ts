@@ -441,14 +441,9 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   );
   if (ytMatch && ytMatch[1]) {
     const id = ytMatch[1];
-    let directStream: string | undefined = undefined;
-    if (id === 'QrTVeuloPQQ' || cleanUrl.toLowerCase().includes('logic')) {
-      directStream = '/videos/logic_gates.mp4';
-    }
     return {
       type: 'youtube',
       embedUrl: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1`,
-      directStreamUrl: directStream,
       originalUrl: cleanUrl,
       videoId: id,
       suggestedThumbnail: `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
@@ -477,13 +472,11 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   );
   if (driveFolderMatch && driveFolderMatch[1]) {
     const folderId = driveFolderMatch[1];
-    // Map folder to its direct video file for seamless cinema playback
     if (folderId === '1j3hCE2dpEkKvTS8lV0J6bXAmsK9u4BTh') {
       const fileId = '1akjgeI2iL4n_yyigsVDSBHiowBoWufbM';
       return {
         type: 'drive',
         embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
-        directStreamUrl: `/videos/pn_junction_diode.mp4`,
         originalUrl: cleanUrl,
         videoId: fileId,
         suggestedThumbnail: `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,
@@ -506,14 +499,9 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   );
   if (driveFileMatch && driveFileMatch[1]) {
     const fileId = driveFileMatch[1];
-    let directStream = `https://drive.usercontent.google.com/download?id=${fileId}&export=download`;
-    if (fileId === '1akjgeI2iL4n_yyigsVDSBHiowBoWufbM') {
-      directStream = `/videos/pn_junction_diode.mp4`;
-    }
     return {
       type: 'drive',
       embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
-      directStreamUrl: directStream,
       originalUrl: cleanUrl,
       videoId: fileId,
       suggestedThumbnail: `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,

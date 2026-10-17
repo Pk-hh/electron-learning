@@ -215,7 +215,7 @@ export function App() {
     setCurrentTime(resumeAt);
     setDuration(video.duration || 0);
     setBookmarked(getLocalBookmarks().includes(video.id));
-    setIsPlaying(true);
+    setIsPlaying(false);
     setShowControls(true);
     setIsDescExpanded(false);
 
@@ -231,10 +231,14 @@ export function App() {
     setTimeout(() => {
       if (videoRef.current) {
         if (resumeAt > 0) videoRef.current.currentTime = resumeAt;
-        videoRef.current.play().catch(() => {});
-        setIsPlaying(true);
+        videoRef.current.play()
+          .then(() => setIsPlaying(true))
+          .catch(() => {
+            // Autoplay rejected or waiting for user gesture
+            setIsPlaying(false);
+          });
       }
-    }, 100);
+    }, 120);
   };
 
   // Listen for YouTube IFrame postMessage events to dynamically capture exact duration
@@ -268,8 +272,14 @@ export function App() {
 
   const handleTogglePlay = () => {
     if (!videoRef.current) return;
-    if (isPlaying) { videoRef.current.pause(); setIsPlaying(false); }
-    else { videoRef.current.play().catch(() => {}); setIsPlaying(true); }
+    if (videoRef.current.paused) {
+      videoRef.current.play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
   };
 
   const handleLoadedMetadata = () => {
@@ -825,19 +835,19 @@ export function App() {
             {/* Video Container (Sticky Cinema Player) */}
             {(() => {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
-              // Only YouTube & Vimeo without direct streams require external iframe embed
-              const isIframe = (sourceInfo.type === 'youtube' || sourceInfo.type === 'vimeo') && !sourceInfo.directStreamUrl;
+              // YouTube, Vimeo, and Google Drive links render via responsive Cinema Embed iframe
+              const isIframe = sourceInfo.type === 'youtube' || sourceInfo.type === 'vimeo' || sourceInfo.type === 'drive';
 
               if (isIframe) {
                 return (
                   <div
-                    className="player-video-wrapper youtube-container"
+                    className={`player-video-wrapper ${sourceInfo.type === 'drive' ? 'drive-container' : 'youtube-container'}`}
                     style={{ position: 'relative', overflow: 'hidden' }}
                   >
                     <iframe
                       src={sourceInfo.embedUrl}
                       title={activeVideo.title}
-                      className="player-video youtube-player-frame"
+                      className={`player-video ${sourceInfo.type === 'drive' ? 'drive-player-frame' : 'youtube-player-frame'}`}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
@@ -852,8 +862,8 @@ export function App() {
                 );
               }
 
-              // Google Drive & Local MP4 Videos use our Custom Native Cinema Player!
-              const videoSrc = sourceInfo.directStreamUrl || sourceInfo.embedUrl || activeVideo.video_url;
+              // Direct MP4 & Local Videos use our Custom Native Cinema Player!
+              const videoSrc = sourceInfo.embedUrl || activeVideo.video_url;
 
               return (
                 <div
@@ -878,17 +888,6 @@ export function App() {
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     autoPlay
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      const rawUrl = (activeVideo.video_url || '').toLowerCase();
-                      if (rawUrl.includes('logic') && !target.src.endsWith('/videos/logic_gates.mp4')) {
-                        target.src = '/videos/logic_gates.mp4';
-                        target.play().catch(() => {});
-                      } else if (rawUrl.includes('junction') && !target.src.endsWith('/videos/pn_junction_diode.mp4')) {
-                        target.src = '/videos/pn_junction_diode.mp4';
-                        target.play().catch(() => {});
-                      }
-                    }}
                   />
 
                   {/* Toast message overlay on player */}
