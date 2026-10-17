@@ -988,10 +988,9 @@ export function App() {
                       }}
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
-                      autoPlay
-                      onError={() => {
+                      onError={(e) => {
+                        console.warn('Direct stream playback error, falling back to stream:', e);
                         setFallbackToIframe(true);
-                        showToast('Switching to cloud stream...');
                       }}
                     />
                   )}
