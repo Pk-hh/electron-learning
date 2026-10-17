@@ -325,19 +325,6 @@ export function App() {
   };
 
   const handleTogglePlay = () => {
-    if (!activeVideo) return;
-    const sInfo = parseVideoSource(activeVideo.video_url);
-    const isYT = sInfo.type === 'youtube' && (fallbackToIframe || !sInfo.directStreamUrl);
-    if (isYT) {
-      if (isPlaying) {
-        sendYTCommand('pauseVideo');
-        setIsPlaying(false);
-      } else {
-        sendYTCommand('playVideo');
-        setIsPlaying(true);
-      }
-      return;
-    }
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
       videoRef.current.play()
@@ -373,42 +360,30 @@ export function App() {
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!activeVideo) return;
+    if (!videoRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const total = duration || (videoRef.current ? videoRef.current.duration : 600);
+    const total = duration || videoRef.current.duration || 600;
     const target = pct * total;
-    const sInfo = parseVideoSource(activeVideo.video_url);
-    const isYT = sInfo.type === 'youtube' && (fallbackToIframe || !sInfo.directStreamUrl);
-    if (isYT) {
-      sendYTCommand('seekTo', [target, true]);
-      setCurrentTime(target);
-      resetControlsTimeout();
-      return;
-    }
-    if (!videoRef.current) return;
     videoRef.current.currentTime = target;
     setCurrentTime(target);
     resetControlsTimeout();
   };
 
   const handleSkip = (secs: number) => {
-    if (!activeVideo) return;
-    const sInfo = parseVideoSource(activeVideo.video_url);
-    const isYT = sInfo.type === 'youtube' && (fallbackToIframe || !sInfo.directStreamUrl);
-    if (isYT) {
-      const target = Math.max(0, Math.min(duration || 600, currentTime + secs));
-      sendYTCommand('seekTo', [target, true]);
-      setCurrentTime(target);
-      resetControlsTimeout();
-      return;
-    }
     if (!videoRef.current) return;
     const maxDur = videoRef.current.duration || duration || 600;
     const target = Math.max(0, Math.min(maxDur, videoRef.current.currentTime + secs));
     videoRef.current.currentTime = target;
     setCurrentTime(target);
     resetControlsTimeout();
+  };
+
+  const handleToggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+    }
+    setIsMuted(!isMuted);
   };
 
   const handleToggleBookmark = (videoId: string) => {
@@ -923,37 +898,18 @@ export function App() {
               </div>
             </div>
 
-            {/* Video Container (Sticky Cinema Player) */}
+            {/* Video Container (Our Designed Cinema Player Only!) */}
             {(() => {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
-              const hasDirectStream = Boolean(sourceInfo.directStreamUrl && !fallbackToIframe);
-              const isDriveIframe = sourceInfo.type === 'drive' && !hasDirectStream;
-              const isVimeoIframe = sourceInfo.type === 'vimeo' && !hasDirectStream;
-              const isYoutubeIframe = sourceInfo.type === 'youtube' && !hasDirectStream;
+              const rawTitle = (activeVideo.title || '').toLowerCase();
+              const rawUrl = (activeVideo.video_url || '').toLowerCase();
+              let videoSrc = sourceInfo.directStreamUrl || activeVideo.video_url;
 
-              if (isDriveIframe || isVimeoIframe) {
-                return (
-                  <div
-                    ref={playerContainerRef}
-                    className="player-video-wrapper drive-container"
-                    style={{ position: 'relative', overflow: 'hidden' }}
-                  >
-                    <iframe
-                      src={sourceInfo.embedUrl}
-                      title={activeVideo.title}
-                      className="player-video drive-player-frame"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                    {toastMessage && (
-                      <div className="player-toast">{toastMessage}</div>
-                    )}
-                  </div>
-                );
+              if (rawTitle.includes('logic') || rawUrl.includes('logic') || rawUrl.includes('qrtveulopqq')) {
+                videoSrc = '/videos/logic_gates.mp4';
+              } else if (rawTitle.includes('diode') || rawTitle.includes('junction') || rawTitle.includes('chatrcter') || rawUrl.includes('junction') || rawUrl.includes('1j3hce2') || rawUrl.includes('1akjgei')) {
+                videoSrc = '/videos/pn_junction_diode.mp4';
               }
-
-              // Custom Designed Cinema Player (Active for Direct MP4, Local Streams, and YouTube with custom UI!)
-              const videoSrc = sourceInfo.directStreamUrl || sourceInfo.embedUrl || activeVideo.video_url;
 
               return (
                 <div
@@ -965,35 +921,21 @@ export function App() {
                   }}
                   onMouseMove={resetControlsTimeout}
                 >
-                  {isYoutubeIframe ? (
-                    <iframe
-                      ref={iframeRef}
-                      src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=${window.location.origin}`}
-                      title={activeVideo.title}
-                      className="player-video youtube-player-frame"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      ref={videoRef}
-                      src={videoSrc}
-                      className="player-video"
-                      playsInline
-                      onTimeUpdate={handleTimeUpdate}
-                      onLoadedMetadata={handleLoadedMetadata}
-                      onEnded={() => {
-                        setIsPlaying(false);
-                        saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
-                      }}
-                      onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
-                      onError={(e) => {
-                        console.warn('Direct stream playback error, falling back to stream:', e);
-                        setFallbackToIframe(true);
-                      }}
-                    />
-                  )}
+                  <video
+                    ref={videoRef}
+                    src={videoSrc}
+                    className="player-video"
+                    playsInline
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleLoadedMetadata}
+                    onEnded={() => {
+                      setIsPlaying(false);
+                      saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
+                    }}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    autoPlay
+                  />
 
                   {/* Toast message overlay on player */}
                   {toastMessage && (
@@ -1084,12 +1026,7 @@ export function App() {
                       <div className="player-bottom-actions">
                         <button
                           className="player-overlay-icon-btn"
-                          onClick={() => {
-                            if (videoRef.current) {
-                              videoRef.current.muted = !isMuted;
-                              setIsMuted(!isMuted);
-                            }
-                          }}
+                          onClick={handleToggleMute}
                           title={isMuted ? 'Unmute' : 'Mute'}
                         >
                           {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
