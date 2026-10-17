@@ -84,8 +84,11 @@ export function App() {
   const [showControls, setShowControls] = useState(true);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [fallbackToIframe, setFallbackToIframe] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsTimeoutRef = useRef<any>(null);
 
   // Auto-hide overlay controls after 3.5 seconds of playback
@@ -117,12 +120,31 @@ export function App() {
     setTimeout(() => setToastMessage(null), 2200);
   };
 
+  // YouTube IFrame API PostMessage helper
+  const sendYTCommand = useCallback((func: string, args: any[] = []) => {
+    try {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func, args }),
+          '*'
+        );
+      }
+    } catch {}
+  }, []);
+
   // Speed cycler (1x -> 1.25x -> 1.5x -> 2x -> 0.75x)
   const SPEEDS = [1.0, 1.25, 1.5, 2.0, 0.75];
   const handleCycleSpeed = () => {
     const curIdx = SPEEDS.indexOf(playbackSpeed);
     const next = SPEEDS[(curIdx + 1) % SPEEDS.length];
     setPlaybackSpeed(next);
+    if (activeVideo) {
+      const sInfo = parseVideoSource(activeVideo.video_url);
+      const isYT = sInfo.type === 'youtube' && (fallbackToIframe || !sInfo.directStreamUrl);
+      if (isYT) {
+        sendYTCommand('setPlaybackRate', [next]);
+      }
+    }
     if (videoRef.current) videoRef.current.playbackRate = next;
     showToast(`${next}× Speed`);
     resetControlsTimeout();
@@ -153,14 +175,16 @@ export function App() {
 
   // Cross-browser Fullscreen (supporting iOS Safari & Android Chrome)
   const handleFullscreen = () => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (v.requestFullscreen) {
-      v.requestFullscreen().catch(() => {});
-    } else if ((v as any).webkitEnterFullscreen) {
-      (v as any).webkitEnterFullscreen();
-    } else if ((v as any).webkitRequestFullscreen) {
-      (v as any).webkitRequestFullscreen();
+    const el = playerContainerRef.current || videoRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else if (el.requestFullscreen) {
+      el.requestFullscreen().catch(() => {});
+    } else if ((el as any).webkitRequestFullscreen) {
+      (el as any).webkitRequestFullscreen();
+    } else if ((videoRef.current as any)?.webkitEnterFullscreen) {
+      (videoRef.current as any).webkitEnterFullscreen();
     }
   };
 
@@ -218,6 +242,7 @@ export function App() {
     setIsPlaying(false);
     setShowControls(true);
     setIsDescExpanded(false);
+    setFallbackToIframe(false);
 
     // Enforce 1 view per device
     recordDeviceView(video.id, video.views).then(isNewView => {
@@ -241,7 +266,7 @@ export function App() {
     }, 120);
   };
 
-  // Listen for YouTube IFrame postMessage events to dynamically capture exact duration
+  // Listen for YouTube IFrame postMessage events to dynamically capture exact duration and state
   useEffect(() => {
     const handleYTMessage = (e: MessageEvent) => {
       try {
@@ -249,13 +274,22 @@ export function App() {
         if (typeof data === 'string') {
           data = JSON.parse(data);
         }
-        if ((data?.event === 'infoDelivery' || data?.event === 'initialDelivery') && data?.info?.duration) {
-          const ytDur = Math.round(Number(data.info.duration));
-          if (ytDur > 0 && activeVideo) {
-            setDuration(ytDur);
-            saveDetectedDuration(activeVideo.id, ytDur);
-            setActiveVideo(prev => (prev && prev.id === activeVideo.id ? { ...prev, duration: ytDur } : prev));
-            setVideos(prev => prev.map(v => (v.id === activeVideo.id ? { ...v, duration: ytDur } : v)));
+        if (data?.event === 'infoDelivery' || data?.event === 'initialDelivery') {
+          if (data?.info?.duration) {
+            const ytDur = Math.round(Number(data.info.duration));
+            if (ytDur > 0 && activeVideo) {
+              setDuration(ytDur);
+              saveDetectedDuration(activeVideo.id, ytDur);
+              setActiveVideo(prev => (prev && prev.id === activeVideo.id ? { ...prev, duration: ytDur } : prev));
+              setVideos(prev => prev.map(v => (v.id === activeVideo.id ? { ...v, duration: ytDur } : v)));
+            }
+          }
+          if (data?.info?.currentTime !== undefined) {
+            setCurrentTime(Math.round(data.info.currentTime));
+          }
+          if (data?.info?.playerState !== undefined) {
+            if (data.info.playerState === 1) setIsPlaying(true);
+            else if (data.info.playerState === 2 || data.info.playerState === 0) setIsPlaying(false);
           }
         }
       } catch {}
@@ -264,6 +298,26 @@ export function App() {
     return () => window.removeEventListener('message', handleYTMessage);
   }, [activeVideo?.id]);
 
+  // Smooth scrubber time updater while playing YouTube
+  useEffect(() => {
+    if (!activeVideo || !isPlaying) return;
+    const sInfo = parseVideoSource(activeVideo.video_url);
+    const isYT = sInfo.type === 'youtube' && (fallbackToIframe || !sInfo.directStreamUrl);
+    if (isYT) {
+      const interval = setInterval(() => {
+        setCurrentTime(prev => {
+          const next = prev + 1;
+          if (duration > 0 && next >= duration) {
+            setIsPlaying(false);
+            return duration;
+          }
+          return next;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [activeVideo, isPlaying, duration, fallbackToIframe]);
+
   const closeVideo = () => {
     if (activeVideo && videoRef.current)
       saveLocalProgress(activeVideo.id, videoRef.current.currentTime, videoRef.current.duration || activeVideo.duration);
@@ -271,6 +325,19 @@ export function App() {
   };
 
   const handleTogglePlay = () => {
+    if (!activeVideo) return;
+    const sInfo = parseVideoSource(activeVideo.video_url);
+    const isYT = sInfo.type === 'youtube' && (fallbackToIframe || !sInfo.directStreamUrl);
+    if (isYT) {
+      if (isPlaying) {
+        sendYTCommand('pauseVideo');
+        setIsPlaying(false);
+      } else {
+        sendYTCommand('playVideo');
+        setIsPlaying(true);
+      }
+      return;
+    }
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
       videoRef.current.play()
@@ -306,17 +373,41 @@ export function App() {
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current) return;
+    if (!activeVideo) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const target = ((e.clientX - rect.left) / rect.width) * (videoRef.current.duration || 1);
-    videoRef.current.currentTime = target; setCurrentTime(target);
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const total = duration || (videoRef.current ? videoRef.current.duration : 600);
+    const target = pct * total;
+    const sInfo = parseVideoSource(activeVideo.video_url);
+    const isYT = sInfo.type === 'youtube' && (fallbackToIframe || !sInfo.directStreamUrl);
+    if (isYT) {
+      sendYTCommand('seekTo', [target, true]);
+      setCurrentTime(target);
+      resetControlsTimeout();
+      return;
+    }
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = target;
+    setCurrentTime(target);
     resetControlsTimeout();
   };
 
   const handleSkip = (secs: number) => {
+    if (!activeVideo) return;
+    const sInfo = parseVideoSource(activeVideo.video_url);
+    const isYT = sInfo.type === 'youtube' && (fallbackToIframe || !sInfo.directStreamUrl);
+    if (isYT) {
+      const target = Math.max(0, Math.min(duration || 600, currentTime + secs));
+      sendYTCommand('seekTo', [target, true]);
+      setCurrentTime(target);
+      resetControlsTimeout();
+      return;
+    }
     if (!videoRef.current) return;
-    const target = Math.max(0, Math.min(videoRef.current.duration, videoRef.current.currentTime + secs));
-    videoRef.current.currentTime = target; setCurrentTime(target);
+    const maxDur = videoRef.current.duration || duration || 600;
+    const target = Math.max(0, Math.min(maxDur, videoRef.current.currentTime + secs));
+    videoRef.current.currentTime = target;
+    setCurrentTime(target);
     resetControlsTimeout();
   };
 
@@ -835,38 +926,38 @@ export function App() {
             {/* Video Container (Sticky Cinema Player) */}
             {(() => {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
-              // YouTube, Vimeo, and Google Drive links render via responsive Cinema Embed iframe
-              const isIframe = sourceInfo.type === 'youtube' || sourceInfo.type === 'vimeo' || sourceInfo.type === 'drive';
+              const hasDirectStream = Boolean(sourceInfo.directStreamUrl && !fallbackToIframe);
+              const isDriveIframe = sourceInfo.type === 'drive' && !hasDirectStream;
+              const isVimeoIframe = sourceInfo.type === 'vimeo' && !hasDirectStream;
+              const isYoutubeIframe = sourceInfo.type === 'youtube' && !hasDirectStream;
 
-              if (isIframe) {
+              if (isDriveIframe || isVimeoIframe) {
                 return (
                   <div
-                    className={`player-video-wrapper ${sourceInfo.type === 'drive' ? 'drive-container' : 'youtube-container'}`}
+                    ref={playerContainerRef}
+                    className="player-video-wrapper drive-container"
                     style={{ position: 'relative', overflow: 'hidden' }}
                   >
                     <iframe
                       src={sourceInfo.embedUrl}
                       title={activeVideo.title}
-                      className={`player-video ${sourceInfo.type === 'drive' ? 'drive-player-frame' : 'youtube-player-frame'}`}
+                      className="player-video drive-player-frame"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
-
-                    {/* Toast message overlay on player */}
                     {toastMessage && (
-                      <div className="player-toast">
-                        {toastMessage}
-                      </div>
+                      <div className="player-toast">{toastMessage}</div>
                     )}
                   </div>
                 );
               }
 
-              // Direct MP4 & Local Videos use our Custom Native Cinema Player!
-              const videoSrc = sourceInfo.embedUrl || activeVideo.video_url;
+              // Custom Designed Cinema Player (Active for Direct MP4, Local Streams, and YouTube with custom UI!)
+              const videoSrc = sourceInfo.directStreamUrl || sourceInfo.embedUrl || activeVideo.video_url;
 
               return (
                 <div
+                  ref={playerContainerRef}
                   className={`player-video-wrapper ${showControls ? 'controls-visible' : 'controls-hidden'}`}
                   onClick={() => {
                     if (showControls) setShowControls(false);
@@ -874,21 +965,36 @@ export function App() {
                   }}
                   onMouseMove={resetControlsTimeout}
                 >
-                  <video
-                    ref={videoRef}
-                    src={videoSrc}
-                    className="player-video"
-                    playsInline
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    onEnded={() => {
-                      setIsPlaying(false);
-                      saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
-                    }}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    autoPlay
-                  />
+                  {isYoutubeIframe ? (
+                    <iframe
+                      ref={iframeRef}
+                      src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=${window.location.origin}`}
+                      title={activeVideo.title}
+                      className="player-video youtube-player-frame"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      ref={videoRef}
+                      src={videoSrc}
+                      className="player-video"
+                      playsInline
+                      onTimeUpdate={handleTimeUpdate}
+                      onLoadedMetadata={handleLoadedMetadata}
+                      onEnded={() => {
+                        setIsPlaying(false);
+                        saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
+                      }}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      autoPlay
+                      onError={() => {
+                        setFallbackToIframe(true);
+                        showToast('Switching to cloud stream...');
+                      }}
+                    />
+                  )}
 
                   {/* Toast message overlay on player */}
                   {toastMessage && (

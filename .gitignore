@@ -28,3 +28,4 @@ dist-ssr
 *.webm
 *.mov
 *.mkv
+!public/videos/pn_junction_diode.mp4
