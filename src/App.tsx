@@ -20,7 +20,7 @@ import {
   formatDuration,
   formatTimeAgo,
   formatViewsCount,
-  recordDeviceView,
+  recordVideoView,
   saveDetectedDuration,
   probeVideoDuration,
   parseVideoSource,
@@ -69,6 +69,7 @@ export function App() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'newest' | 'title' | 'duration' | 'views'>('newest');
+  const [libraryViewMode, setLibraryViewMode] = useState<'playlists' | 'lessons'>('playlists');
 
   const [continueWatching, setContinueWatching] = useState<ProgressRecord[]>([]);
   const [bookmarkIds, setBookmarkIds] = useState<string[]>([]);
@@ -173,18 +174,37 @@ export function App() {
     }
   };
 
-  // Cross-browser Fullscreen (supporting iOS Safari & Android Chrome)
-  const handleFullscreen = () => {
+  // Cross-browser Fullscreen with Landscape Orientation Lock (supporting Mobile Chrome & Safari)
+  const handleFullscreen = async () => {
     const el = playerContainerRef.current || videoRef.current;
     if (!el) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    } else if (el.requestFullscreen) {
-      el.requestFullscreen().catch(() => {});
-    } else if ((el as any).webkitRequestFullscreen) {
-      (el as any).webkitRequestFullscreen();
-    } else if ((videoRef.current as any)?.webkitEnterFullscreen) {
-      (videoRef.current as any).webkitEnterFullscreen();
+    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+      try {
+        if (screen.orientation && (screen.orientation as any).unlock) {
+          (screen.orientation as any).unlock();
+        }
+      } catch {}
+    } else {
+      try {
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+        } else if ((el as any).webkitRequestFullscreen) {
+          await (el as any).webkitRequestFullscreen();
+        } else if ((videoRef.current as any)?.webkitEnterFullscreen) {
+          (videoRef.current as any).webkitEnterFullscreen();
+        }
+        // Lock to landscape once in fullscreen mode (works on Android Chrome and modern mobile browsers)
+        if (screen.orientation && (screen.orientation as any).lock) {
+          await (screen.orientation as any).lock('landscape').catch(() => {});
+        }
+      } catch {
+        // Safe fallback if lock is not supported or permitted on current device
+      }
     }
   };
 
@@ -195,6 +215,31 @@ export function App() {
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
+  // Handle exiting fullscreen via ESC key or browser gesture to unlock orientation
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFullscreenNow = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      if (!isFullscreenNow) {
+        try {
+          if (screen.orientation && (screen.orientation as any).unlock) {
+            (screen.orientation as any).unlock();
+          }
+        } catch {}
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
   }, []);
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -244,12 +289,11 @@ export function App() {
     setIsDescExpanded(false);
     setFallbackToIframe(false);
 
-    // Enforce 1 view per device
-    recordDeviceView(video.id, video.views).then(isNewView => {
-      if (isNewView) {
-        // First view from this device -> increment count in state immediately!
-        setActiveVideo(prev => prev && prev.id === video.id ? { ...prev, views: (prev.views || 0) + 1 } : prev);
-        setVideos(prev => prev.map(v => v.id === video.id ? { ...v, views: (v.views || 0) + 1 } : v));
+    // Record view in database and update state dynamically
+    recordVideoView(video.id, video.views).then(newCount => {
+      if (newCount && newCount > (video.views || 0)) {
+        setActiveVideo(prev => (prev && prev.id === video.id ? { ...prev, views: newCount } : prev));
+        setVideos(prev => prev.map(v => (v.id === video.id ? { ...v, views: newCount } : v)));
       }
     });
 
@@ -750,6 +794,50 @@ export function App() {
                 <span className="library-count-pill">{filteredVideos.length} {filteredVideos.length === 1 ? 'lesson' : 'lessons'}</span>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* View Mode Switch */}
+                <div style={{ display: 'inline-flex', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 50, padding: 2 }}>
+                  <button
+                    type="button"
+                    onClick={() => setLibraryViewMode('playlists')}
+                    style={{
+                      background: libraryViewMode === 'playlists' ? 'var(--brand)' : 'transparent',
+                      color: libraryViewMode === 'playlists' ? '#fff' : 'var(--text-muted)',
+                      border: 'none',
+                      borderRadius: 50,
+                      padding: '0.3rem 0.8rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <ListVideo size={13} /> Unit Playlists
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLibraryViewMode('lessons')}
+                    style={{
+                      background: libraryViewMode === 'lessons' ? 'var(--brand)' : 'transparent',
+                      color: libraryViewMode === 'lessons' ? '#fff' : 'var(--text-muted)',
+                      border: 'none',
+                      borderRadius: 50,
+                      padding: '0.3rem 0.8rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Layers size={13} /> All Lessons
+                  </button>
+                </div>
+
                 <SlidersHorizontal size={15} color="var(--text-muted)" />
                 <select className="filter-select" value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}>
                   <option value="newest">Newest First</option>
@@ -817,11 +905,152 @@ export function App() {
                   Reset all filters
                 </button>
               </div>
+            ) : libraryViewMode === 'playlists' ? (
+              (() => {
+                const unitGroups = new Map<string, Video[]>();
+                const unassigned: Video[] = [];
+
+                filteredVideos.forEach(v => {
+                  const u = v.unit || v.chapter;
+                  if (u) {
+                    if (!unitGroups.has(u)) unitGroups.set(u, []);
+                    unitGroups.get(u)!.push(v);
+                  } else {
+                    unassigned.push(v);
+                  }
+                });
+
+                if (unitGroups.size === 0) {
+                  return (
+                    <div className="video-grid">
+                      {filteredVideos.map(v => (
+                        <VideoCard
+                          key={v.id}
+                          video={v}
+                          onPlay={() => openVideo(v)}
+                          onBookmark={() => handleToggleBookmark(v.id)}
+                          isBookmarked={bookmarkIds.includes(v.id)}
+                        />
+                      ))}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    {Array.from(unitGroups.entries()).map(([unitName, unitVids]) => {
+                      const sortedVids = [...unitVids].sort((a, b) => (a.unit_order || 1) - (b.unit_order || 1));
+                      const totalDurationSec = sortedVids.reduce((acc, v) => acc + (v.duration || 600), 0);
+
+                      return (
+                        <div
+                          key={unitName}
+                          style={{
+                            background: 'var(--bg-surface)',
+                            border: '1.5px solid var(--border)',
+                            borderRadius: 16,
+                            overflow: 'hidden',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+                          }}
+                        >
+                          <div
+                            style={{
+                              padding: '1.15rem 1.5rem',
+                              borderBottom: '1px solid var(--border)',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                              gap: '1rem',
+                              background: 'linear-gradient(to right, rgba(0,102,255,0.04), transparent)',
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 4 }}>
+                                <span
+                                  style={{
+                                    fontSize: '0.72rem',
+                                    fontWeight: 800,
+                                    background: 'rgba(0,102,255,0.12)',
+                                    color: 'var(--brand)',
+                                    padding: '0.2rem 0.6rem',
+                                    borderRadius: 6,
+                                  }}
+                                >
+                                  Unit Playlist
+                                </span>
+                                <h3 style={{ margin: 0, fontWeight: 900, fontSize: '1.18rem', color: 'var(--text-primary)' }}>
+                                  {unitName}
+                                </h3>
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                {sortedVids.length} {sortedVids.length === 1 ? 'lesson' : 'lessons'} • {formatDuration(totalDurationSec)} total watch time
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              onClick={() => openVideo(sortedVids[0])}
+                              style={{
+                                borderRadius: 50,
+                                padding: '0.55rem 1.25rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                fontWeight: 700,
+                              }}
+                            >
+                              <Play size={14} fill="#fff" /> Play Unit Playlist
+                            </button>
+                          </div>
+
+                          <div className="video-grid" style={{ padding: '1.25rem' }}>
+                            {sortedVids.map(v => (
+                              <VideoCard
+                                key={v.id}
+                                video={v}
+                                onPlay={() => openVideo(v)}
+                                onBookmark={() => handleToggleBookmark(v.id)}
+                                isBookmarked={bookmarkIds.includes(v.id)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {unassigned.length > 0 && (
+                      <div>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.85rem', color: 'var(--text-secondary)' }}>
+                          General Lessons ({unassigned.length})
+                        </h3>
+                        <div className="video-grid">
+                          {unassigned.map(v => (
+                            <VideoCard
+                              key={v.id}
+                              video={v}
+                              onPlay={() => openVideo(v)}
+                              onBookmark={() => handleToggleBookmark(v.id)}
+                              isBookmarked={bookmarkIds.includes(v.id)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               <div className="video-grid">
                 {filteredVideos.map(v => (
-                  <VideoCard key={v.id} video={v} onPlay={() => openVideo(v)}
-                    onBookmark={() => handleToggleBookmark(v.id)} isBookmarked={bookmarkIds.includes(v.id)} />
+                  <VideoCard
+                    key={v.id}
+                    video={v}
+                    onPlay={() => openVideo(v)}
+                    onBookmark={() => handleToggleBookmark(v.id)}
+                    isBookmarked={bookmarkIds.includes(v.id)}
+                  />
                 ))}
               </div>
             )}
@@ -980,6 +1209,22 @@ export function App() {
                       onEnded={() => {
                         setIsPlaying(false);
                         saveLocalProgress(activeVideo.id, activeVideo.duration, activeVideo.duration);
+                        const activeUnit = activeVideo.unit || activeVideo.chapter;
+                        if (activeUnit) {
+                          const unitVids = videos
+                            .filter(
+                              v =>
+                                v.subject_id === activeVideo.subject_id &&
+                                (v.unit === activeUnit || v.chapter === activeUnit)
+                            )
+                            .sort((a, b) => (a.unit_order || 1) - (b.unit_order || 1));
+                          const currIdx = unitVids.findIndex(v => v.id === activeVideo.id);
+                          if (currIdx >= 0 && currIdx < unitVids.length - 1) {
+                            const nextVid = unitVids[currIdx + 1];
+                            showToast(`Next in Playlist: ${nextVid.title}`);
+                            setTimeout(() => openVideo(nextVid), 1200);
+                          }
+                        }
                       }}
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
@@ -1283,22 +1528,127 @@ export function App() {
                 </div>
               )}
 
-              {/* Up Next in Subject / Recommended Queue */}
-              {videos.filter(v => v.id !== activeVideo.id).length > 0 && (
-                <div className="player-up-next-section">
-                  <div className="player-up-next-heading">
-                    <ListVideo size={18} color="var(--brand)" />
-                    <span>Up Next in this Course</span>
-                  </div>
-                  <div className="up-next-cards-list">
-                    {videos
-                      .filter(v => v.id !== activeVideo.id && (v.subject_id === activeVideo.subject_id || !activeVideo.subject_id))
-                      .concat(videos.filter(v => v.id !== activeVideo.id && v.subject_id !== activeVideo.subject_id))
-                      .map((v, idx) => (
+              {/* Up Next in Unit Playlist / Recommended Queue */}
+              {(() => {
+                const activeUnitName = activeVideo.unit || activeVideo.chapter;
+                const unitPlaylist = activeUnitName
+                  ? videos
+                      .filter(
+                        v =>
+                          v.subject_id === activeVideo.subject_id &&
+                          (v.unit === activeUnitName || v.chapter === activeUnitName)
+                      )
+                      .sort((a, b) => (a.unit_order || 1) - (b.unit_order || 1))
+                  : [];
+
+                const currentUnitIndex = unitPlaylist.findIndex(v => v.id === activeVideo.id);
+
+                if (unitPlaylist.length > 0) {
+                  return (
+                    <div className="player-up-next-section">
+                      <div
+                        className="player-up-next-heading"
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <ListVideo size={18} color="var(--brand)" />
+                          <span style={{ fontWeight: 800 }}>Playlist: {activeUnitName}</span>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            background: 'rgba(0, 102, 255, 0.12)',
+                            color: 'var(--brand)',
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: 6,
+                          }}
+                        >
+                          Lesson {currentUnitIndex + 1} of {unitPlaylist.length}
+                        </span>
+                      </div>
+
+                      <div className="up-next-cards-list">
+                        {unitPlaylist.map((v, idx) => {
+                          const isCurrent = v.id === activeVideo.id;
+                          return (
+                            <div
+                              key={v.id}
+                              className={`up-next-video-card ${isCurrent ? 'active-playing-lesson' : ''}`}
+                              onClick={() => {
+                                if (!isCurrent) openVideo(v);
+                              }}
+                              style={{
+                                border: isCurrent ? '2px solid var(--brand)' : undefined,
+                                background: isCurrent ? 'rgba(0, 102, 255, 0.06)' : undefined,
+                              }}
+                            >
+                              <div className="up-next-card-thumb-wrap">
+                                <img
+                                  src={
+                                    v.thumbnail_url ||
+                                    'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=260'
+                                  }
+                                  alt={v.title}
+                                  className="up-next-card-thumb"
+                                />
+                                <span className="up-next-badge-duration">{formatDuration(v.duration || 600)}</span>
+                                <div className="up-next-play-hover">
+                                  <Play size={16} fill="#fff" />
+                                </div>
+                              </div>
+                              <div className="up-next-card-content">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span className="up-next-lesson-num">Lesson {v.unit_order || idx + 1}</span>
+                                  {isCurrent && (
+                                    <span
+                                      style={{
+                                        fontSize: '0.65rem',
+                                        fontWeight: 800,
+                                        color: 'var(--brand)',
+                                        textTransform: 'uppercase',
+                                      }}
+                                    >
+                                      ▶ Now Playing
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="up-next-card-title">{v.title}</div>
+                                <div className="up-next-card-meta">
+                                  {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
+                                  <span>{formatViewsCount(v.views)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Fallback: general Up Next if no unit is set
+                const otherVideos = videos
+                  .filter(v => v.id !== activeVideo.id && (v.subject_id === activeVideo.subject_id || !activeVideo.subject_id))
+                  .concat(videos.filter(v => v.id !== activeVideo.id && v.subject_id !== activeVideo.subject_id));
+
+                if (otherVideos.length === 0) return null;
+
+                return (
+                  <div className="player-up-next-section">
+                    <div className="player-up-next-heading">
+                      <ListVideo size={18} color="var(--brand)" />
+                      <span>Up Next in this Course</span>
+                    </div>
+                    <div className="up-next-cards-list">
+                      {otherVideos.map((v, idx) => (
                         <div key={v.id} className="up-next-video-card" onClick={() => openVideo(v)}>
                           <div className="up-next-card-thumb-wrap">
                             <img
-                              src={v.thumbnail_url || 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=260'}
+                              src={
+                                v.thumbnail_url ||
+                                'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=260'
+                              }
                               alt={v.title}
                               className="up-next-card-thumb"
                             />
@@ -1317,9 +1667,10 @@ export function App() {
                           </div>
                         </div>
                       ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -1473,7 +1824,23 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
         <div className="video-title">{video.title}</div>
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', margin: '0.4rem 0', flexWrap: 'wrap' }}>
           {video.subject_name && <span className="subject-pill">{video.subject_name}</span>}
-          {video.chapter && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}><BookOpen size={10} />{video.chapter}</span>}
+          {(video.unit || video.chapter) && (
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                color: '#2563eb',
+                background: 'rgba(59, 130, 246, 0.08)',
+                padding: '0.12rem 0.45rem',
+                borderRadius: 5,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+              }}
+            >
+              <ListVideo size={10} /> {video.unit || video.chapter}
+            </span>
+          )}
         </div>
         {video.description && <div className="video-desc">{video.description}</div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem' }}>

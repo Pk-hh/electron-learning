@@ -6,6 +6,7 @@ export interface Subject {
   description?: string;
   icon?: string;
   color?: string;
+  units?: string[];
 }
 
 export interface Video {
@@ -15,6 +16,8 @@ export interface Video {
   subject_id?: string;
   subject_name?: string;
   chapter?: string;
+  unit?: string;
+  unit_order?: number;
   video_url: string;
   thumbnail_url?: string;
   duration: number;          // seconds

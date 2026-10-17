@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getAuth } from 'firebase/auth';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
@@ -18,6 +18,11 @@ export const firebaseApp = initializeApp(firebaseConfig);
 export const db = getFirestore(firebaseApp);
 export const storage = getStorage(firebaseApp);
 export const auth = getAuth(firebaseApp);
+
+// Initialize anonymous auth for public student clients so Firestore view counter & reads are fully authenticated
+signInAnonymously(auth).catch(err => {
+  console.debug('Anonymous auth note (app works seamlessly offline/cached):', err);
+});
 
 // Analytics is optional (blocked in some environments)
 isSupported().then(yes => yes ? getAnalytics(firebaseApp) : null).catch(() => null);

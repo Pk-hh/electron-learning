@@ -15,7 +15,6 @@ import type { Video, Subject } from '../types';
 // ─── Local Storage Keys ──────────────────────────────────────────────────────
 const BOOKMARKS_KEY = 'electrON_bookmarks';
 const PROGRESS_KEY = 'electrON_progress';
-const VIEWED_KEY = 'electrON_viewed_videos';
 const LOCAL_VIEWS_MAP_KEY = 'electrON_local_views_map';
 const DURATIONS_KEY = 'electrON_video_durations';
 
@@ -58,37 +57,35 @@ export function saveLocalViewsMap(map: Record<string, number>): void {
   } catch {}
 }
 
-// ─── 1 View Per Device Tracking ──────────────────────────────────────────────
+// ─── Video Views Tracking ──────────────────────────────────────────────────
+// In-memory debounce map to prevent rapid double-counting on multiple clicks
+const lastRecordedTimes: Record<string, number> = {};
+
 export function hasDeviceViewedVideo(videoId: string): boolean {
   try {
-    const list: string[] = JSON.parse(localStorage.getItem(VIEWED_KEY) ?? '[]');
-    return list.includes(videoId);
+    const map = getLocalViewsMap();
+    return Boolean(map[videoId] && map[videoId] > 0);
   } catch {
     return false;
   }
 }
 
-export async function recordDeviceView(videoId: string, currentViews: number = 0): Promise<boolean> {
-  if (!videoId) return false;
+export async function recordVideoView(videoId: string, currentViews: number = 0): Promise<number> {
+  if (!videoId) return currentViews;
   try {
-    const list: string[] = JSON.parse(localStorage.getItem(VIEWED_KEY) ?? '[]');
+    const now = Date.now();
+    const lastTime = lastRecordedTimes[videoId] || 0;
     const localMap = getLocalViewsMap();
 
-    if (list.includes(videoId)) {
-      // Already viewed on this device -> enforce 1 view per device
-      if (!localMap[videoId]) {
-        localMap[videoId] = Math.max(currentViews, 1);
-        saveLocalViewsMap(localMap);
-      }
-      return false;
+    // Debounce: prevent duplicate increments within 10 seconds on same video session
+    if (now - lastTime < 10000) {
+      return Math.max(currentViews, localMap[videoId] || 0);
     }
+    lastRecordedTimes[videoId] = now;
 
-    // First time view on this device!
-    list.push(videoId);
-    localStorage.setItem(VIEWED_KEY, JSON.stringify(list));
-
-    // Update local views count immediately
-    const updatedCount = Math.max(currentViews, localMap[videoId] || 0) + 1;
+    // Calculate next view count
+    const baseCount = Math.max(currentViews, localMap[videoId] || 0);
+    const updatedCount = baseCount + 1;
     localMap[videoId] = updatedCount;
     saveLocalViewsMap(localMap);
 
@@ -98,14 +95,20 @@ export async function recordDeviceView(videoId: string, currentViews: number = 0
         views: increment(1),
       });
     } catch (fsErr) {
-      console.warn('Firestore views increment warning:', fsErr);
+      console.warn('Firestore views increment note:', fsErr);
     }
 
-    return true;
+    return updatedCount;
   } catch (err) {
-    console.warn('recordDeviceView error:', err);
-    return false;
+    console.warn('recordVideoView error:', err);
+    return (currentViews || 0) + 1;
   }
+}
+
+// Backwards-compatible wrapper
+export async function recordDeviceView(videoId: string, currentViews: number = 0): Promise<boolean> {
+  const next = await recordVideoView(videoId, currentViews);
+  return next > currentViews;
 }
 
 // ─── Firestore parser ────────────────────────────────────────────────────────
@@ -151,13 +154,11 @@ function docToVideo(d: QueryDocumentSnapshot): Video {
     ? rawDur
     : (cachedDurations[d.id] ?? (rawDur > 0 ? rawDur : (isLinkOrYT ? 600 : 0)));
 
-  // Views handling: 1 view per device guarantee
+  // Views handling: use real database views or locally synced view count
   const firestoreViews = typeof data.views === 'number' ? data.views : (parseInt(data.views, 10) || 0);
   const localMap = getLocalViewsMap();
-  const hasViewed = hasDeviceViewedVideo(d.id);
   const localKnown = localMap[d.id] ?? 0;
-  // Ensure that if this device viewed the video, it shows at least 1 view or known local views
-  const finalViews = Math.max(firestoreViews, localKnown, hasViewed ? 1 : 0);
+  const finalViews = Math.max(firestoreViews, localKnown);
 
   return {
     id: d.id,
@@ -165,7 +166,9 @@ function docToVideo(d: QueryDocumentSnapshot): Video {
     description: data.description ?? '',
     subject_id: data.subject_id ?? '',
     subject_name: data.subject_name ?? '',
-    chapter: data.chapter ?? '',
+    chapter: data.chapter ?? data.unit ?? '',
+    unit: data.unit ?? data.chapter ?? '',
+    unit_order: typeof data.unit_order === 'number' ? data.unit_order : 0,
     duration: finalDur,
     thumbnail_url: data.thumbnail_url ?? '',
     video_url: data.video_url ?? '',
@@ -184,6 +187,7 @@ function docToSubject(d: QueryDocumentSnapshot): Subject {
     description: data.description ?? '',
     icon: data.icon ?? '📚',
     color: data.color ?? '#F97316',
+    units: Array.isArray(data.units) ? data.units : [],
   };
 }
 
