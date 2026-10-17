@@ -740,6 +740,12 @@ body {
   flex-shrink: 0;
 }
 
+.player-nav-badge.drive {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
 .player-nav-actions {
   display: flex;
   align-items: center;
@@ -759,6 +765,53 @@ body {
   border: none !important;
   display: block;
   background: #000;
+}
+
+/* ── Google Drive Video Container (Optimized Aspect, Touch Controls) ── */
+.player-video-wrapper.drive-container {
+  cursor: default;
+  background: #000;
+}
+
+.drive-player-frame {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  display: block;
+  background: #000;
+}
+
+.drive-fullscreen-floating-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  padding: 5px 11px;
+  border-radius: 20px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  z-index: 15;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.drive-fullscreen-floating-btn:hover {
+  background: var(--brand);
+  border-color: var(--brand);
+  transform: scale(1.04);
+}
+
+.drive-fullscreen-floating-btn:active {
+  transform: scale(0.95);
 }
 
 /* ── YouTube Badge on Video Cards ── */
@@ -1141,6 +1194,104 @@ body {
   background: var(--brand-light);
   border-color: var(--brand);
   color: var(--brand-dark);
+}
+
+/* ── Google Drive Assist Banner ── */
+.drive-assist-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%);
+  border: 1.5px solid #A7F3D0;
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
+}
+
+.drive-assist-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.drive-assist-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+.drive-assist-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #065F46;
+  line-height: 1.25;
+}
+
+.drive-assist-sub {
+  font-size: 0.73rem;
+  color: #047857;
+  margin-top: 2px;
+}
+
+.drive-assist-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.drive-assist-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  user-select: none;
+}
+
+.drive-assist-btn.fullscreen-btn {
+  background: #065F46;
+  color: #ffffff;
+  border: none;
+}
+
+.drive-assist-btn.fullscreen-btn:hover {
+  background: #047857;
+}
+
+.drive-assist-btn.fullscreen-btn:active {
+  transform: scale(0.96);
+}
+
+.drive-assist-btn.app-btn {
+  background: #ffffff;
+  color: #065F46;
+  border: 1.5px solid #6EE7B7;
+}
+
+.drive-assist-btn.app-btn:hover {
+  background: #E6FFFA;
+  border-color: #34D399;
+}
+
+.drive-assist-btn.app-btn:active {
+  transform: scale(0.96);
+}
+
+.player-action-bar.drive-bar {
+  grid-template-columns: repeat(5, 1fr);
 }
 
 /* Lesson Description Card */
@@ -1567,6 +1718,12 @@ body {
     aspect-ratio: 16/9;
   }
 
+  .player-video-wrapper.drive-container {
+    aspect-ratio: 16 / 10;
+    min-height: 245px;
+    max-height: 48vh;
+  }
+
   .player-overlay-top {
     padding: 0.65rem 0.75rem;
   }
@@ -1597,6 +1754,31 @@ body {
   .player-action-bar {
     grid-template-columns: repeat(4, 1fr);
     gap: 0.4rem;
+  }
+
+  .player-action-bar.drive-bar {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.35rem;
+  }
+
+  .player-action-bar.drive-bar .player-action-item {
+    padding: 0.5rem 0.15rem;
+    font-size: 0.67rem;
+  }
+
+  .drive-assist-banner {
+    padding: 0.75rem 0.85rem;
+    gap: 0.65rem;
+  }
+
+  .drive-assist-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .drive-assist-btn {
+    padding: 0.5rem 0.4rem;
+    font-size: 0.74rem;
   }
 
   .player-action-item {
