@@ -366,10 +366,10 @@ export function parseVideoSource(url: string): VideoSourceInfo {
     const id = ytMatch[1];
     return {
       type: 'youtube',
-      embedUrl: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&playsinline=1`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3`,
       originalUrl: cleanUrl,
       videoId: id,
-      suggestedThumbnail: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+      suggestedThumbnail: `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
       label: 'YouTube',
     };
   }

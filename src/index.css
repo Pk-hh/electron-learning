@@ -666,6 +666,123 @@ body {
   flex-direction: column;
 }
 
+/* ── Modal Top Header Bar ── */
+.player-modal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #FFFFFF;
+  border-bottom: 1.5px solid var(--border);
+  gap: 0.75rem;
+  flex-shrink: 0;
+  z-index: 60;
+}
+
+.player-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 50px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.player-nav-btn:hover {
+  background: var(--brand-light);
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.player-nav-btn.bookmark-btn.bookmarked {
+  background: var(--brand-light);
+  color: var(--brand-dark);
+  border-color: var(--brand);
+}
+
+.player-nav-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  overflow: hidden;
+  text-align: left;
+  flex: 1;
+}
+
+.player-top-lesson-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-nav-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(220, 38, 38, 0.1);
+  color: #DC2626;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.player-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* ── YouTube Video Container (Pristine 16:9, No Clutter, Clean Edge) ── */
+.player-video-wrapper.youtube-container {
+  cursor: default;
+  background: #000;
+}
+
+.youtube-player-frame {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  display: block;
+  background: #000;
+}
+
+/* ── YouTube Badge on Video Cards ── */
+.youtube-card-badge {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  background: rgba(15, 15, 15, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 8px 3px 6px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  z-index: 3;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.3px;
+}
+
 /* Sticky/Top Video Player Box */
 .player-video-wrapper {
   position: relative;
@@ -1417,6 +1534,29 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  .player-modal-nav {
+    padding: 0.65rem 0.85rem;
+    background: #150800;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .player-top-lesson-title {
+    color: #fff;
+    font-size: 0.84rem;
+  }
+
+  .player-nav-btn {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.22);
+    padding: 0.4rem 0.65rem;
+    font-size: 0.78rem;
+  }
+
+  .btn-label-desktop {
+    display: none;
   }
 
   .player-video-wrapper {

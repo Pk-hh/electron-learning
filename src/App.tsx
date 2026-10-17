@@ -6,7 +6,7 @@ import {
   Calculator, Atom, FlaskConical, Dna, Globe2, Languages, Cpu, Music2,
   History, PenTool, BarChart2, Microscope, Layers, GraduationCap,
   Eye, ListVideo, Star, WifiOff, AlertTriangle, Info, Sparkles,
-  Share2, Zap, ChevronDown, ChevronUp,
+  Share2, Zap, ChevronDown, ChevronUp, CheckCircle2,
 } from 'lucide-react';
 import type { Video, Subject } from './types';
 import {
@@ -731,6 +731,58 @@ export function App() {
         <div className="player-modal-overlay" onClick={closeVideo}>
           <div className="player-modal" onClick={e => e.stopPropagation()}>
 
+            {/* Top Navigation Bar of the Player Modal */}
+            <div className="player-modal-nav">
+              <button className="player-nav-btn" onClick={closeVideo} title="Back to lessons">
+                <ChevronLeft size={18} />
+                <span>Back</span>
+              </button>
+
+              <div className="player-nav-title-group">
+                <span className="player-top-lesson-title">{activeVideo.title}</span>
+                {(() => {
+                  const sInfo = parseVideoSource(activeVideo.video_url);
+                  if (sInfo.type === 'youtube') {
+                    return (
+                      <span className="player-nav-badge">
+                        <svg width="12" height="12" viewBox="0 0 24 24">
+                          <path
+                            fill="#FF0000"
+                            d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
+                          />
+                        </svg>
+                        YouTube
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+
+              <div className="player-nav-actions">
+                <button
+                  className={`player-nav-btn bookmark-btn ${bookmarked ? 'bookmarked' : ''}`}
+                  onClick={() => handleToggleBookmark(activeVideo.id)}
+                  title={bookmarked ? 'Saved to bookmarks' : 'Bookmark lesson'}
+                >
+                  <Bookmark
+                    size={16}
+                    fill={bookmarked ? 'var(--brand)' : 'none'}
+                    color={bookmarked ? 'var(--brand)' : 'currentColor'}
+                  />
+                  <span className="btn-label-desktop">{bookmarked ? 'Saved' : 'Save'}</span>
+                </button>
+                <button
+                  className="player-nav-btn"
+                  onClick={closeVideo}
+                  title="Close player"
+                  style={{ padding: '0.45rem', borderRadius: '50%' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
             {/* Video Container (Sticky 16:9 Cinema Player) */}
             {(() => {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
@@ -739,52 +791,16 @@ export function App() {
               if (isEmbed) {
                 return (
                   <div
-                    className="player-video-wrapper controls-visible"
+                    className="player-video-wrapper youtube-container"
                     style={{ position: 'relative', overflow: 'hidden' }}
                   >
                     <iframe
                       src={sourceInfo.embedUrl}
                       title={activeVideo.title}
-                      className="player-video"
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        border: 'none',
-                        background: '#000',
-                      }}
+                      className="player-video youtube-player-frame"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
-
-                    {/* Top Controls Overlay for Embed (Back, Title, Bookmark) */}
-                    <div
-                      className="player-overlay-top"
-                      style={{
-                        opacity: 1,
-                        pointerEvents: 'auto',
-                        background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)',
-                      }}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <button className="player-overlay-btn" onClick={closeVideo} title="Back">
-                        <ChevronLeft size={22} />
-                      </button>
-                      <div className="player-overlay-title">{activeVideo.title}</div>
-                      <button
-                        className="player-overlay-btn"
-                        onClick={() => handleToggleBookmark(activeVideo.id)}
-                        title="Save lesson"
-                      >
-                        <Bookmark
-                          size={18}
-                          fill={bookmarked ? 'var(--brand)' : 'none'}
-                          color={bookmarked ? 'var(--brand)' : '#fff'}
-                        />
-                      </button>
-                    </div>
 
                     {/* Toast message overlay on player */}
                     {toastMessage && (
@@ -971,31 +987,87 @@ export function App() {
                 </div>
               </div>
 
-              {/* Action Bar (Bookmark, Speed, Share, Fullscreen) */}
-              <div className="player-action-bar">
-                <button
-                  className={`player-action-item ${bookmarked ? 'active' : ''}`}
-                  onClick={() => handleToggleBookmark(activeVideo.id)}
-                >
-                  <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
-                  <span>{bookmarked ? 'Saved' : 'Save'}</span>
-                </button>
+              {/* Action Bar (Bookmark, Speed / YouTube, Share, Fullscreen / Complete) */}
+              {(() => {
+                const sInfo = parseVideoSource(activeVideo.video_url);
+                const isYoutube = sInfo.type === 'youtube';
+                const isCompleted = (getLocalProgress(activeVideo.id)?.position ?? 0) >= (activeVideo.duration || 60);
 
-                <button className="player-action-item" onClick={handleCycleSpeed}>
-                  <Zap size={18} color="var(--brand)" />
-                  <span>{playbackSpeed}× Speed</span>
-                </button>
+                if (isYoutube) {
+                  return (
+                    <div className="player-action-bar">
+                      <button
+                        className={`player-action-item ${bookmarked ? 'active' : ''}`}
+                        onClick={() => handleToggleBookmark(activeVideo.id)}
+                      >
+                        <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
+                        <span>{bookmarked ? 'Saved' : 'Save'}</span>
+                      </button>
 
-                <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
-                  <Share2 size={18} />
-                  <span>Share</span>
-                </button>
+                      <a
+                        href={`https://www.youtube.com/watch?v=${sInfo.videoId || ''}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="player-action-item"
+                        style={{ color: '#DC2626', textDecoration: 'none' }}
+                        title="Watch directly on YouTube"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" style={{ display: 'inline-block' }}>
+                          <path
+                            fill="#FF0000"
+                            d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
+                          />
+                        </svg>
+                        <span style={{ fontWeight: 800 }}>YouTube ↗</span>
+                      </a>
 
-                <button className="player-action-item" onClick={handleFullscreen}>
-                  <Maximize size={18} />
-                  <span>Fullscreen</span>
-                </button>
-              </div>
+                      <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
+                        <Share2 size={18} />
+                        <span>Share</span>
+                      </button>
+
+                      <button
+                        className={`player-action-item ${isCompleted ? 'active' : ''}`}
+                        onClick={() => {
+                          saveLocalProgress(activeVideo.id, activeVideo.duration || 100, activeVideo.duration || 100);
+                          refreshLocalData();
+                          showToast('Marked as Completed! 🎉');
+                        }}
+                      >
+                        <CheckCircle2 size={18} color={isCompleted ? 'var(--brand)' : 'currentColor'} />
+                        <span>{isCompleted ? 'Completed' : 'Done ✓'}</span>
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="player-action-bar">
+                    <button
+                      className={`player-action-item ${bookmarked ? 'active' : ''}`}
+                      onClick={() => handleToggleBookmark(activeVideo.id)}
+                    >
+                      <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
+                      <span>{bookmarked ? 'Saved' : 'Save'}</span>
+                    </button>
+
+                    <button className="player-action-item" onClick={handleCycleSpeed}>
+                      <Zap size={18} color="var(--brand)" />
+                      <span>{playbackSpeed}× Speed</span>
+                    </button>
+
+                    <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
+                      <Share2 size={18} />
+                      <span>Share</span>
+                    </button>
+
+                    <button className="player-action-item" onClick={handleFullscreen}>
+                      <Maximize size={18} />
+                      <span>Fullscreen</span>
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Lesson Description (Collapsible Card) */}
               {activeVideo.description && (
@@ -1103,29 +1175,32 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
   return (
     <div className="video-card" onClick={onPlay}>
       <div className="video-thumb-wrap">
-        <img src={video.thumbnail_url || 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=400'}
-          alt={video.title} className="video-thumb" loading="lazy" />
+        <img
+          src={video.thumbnail_url || 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=400'}
+          alt={video.title}
+          className="video-thumb"
+          loading="lazy"
+          onError={e => {
+            const target = e.currentTarget as HTMLImageElement;
+            if (target.src.includes('maxresdefault.jpg')) {
+              target.src = target.src.replace('maxresdefault.jpg', 'hqdefault.jpg');
+            } else if (!target.src.includes('unsplash.com')) {
+              target.src = 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400';
+            }
+          }}
+        />
         {(() => {
           const parsed = parseVideoSource(video.video_url);
           if (parsed.type === 'youtube') {
             return (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 8,
-                  left: 8,
-                  background: 'rgba(220, 38, 38, 0.92)',
-                  color: '#fff',
-                  fontSize: '0.62rem',
-                  fontWeight: 900,
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  letterSpacing: '0.5px',
-                  zIndex: 2,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                }}
-              >
-                YOUTUBE
+              <span className="youtube-card-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                  <path
+                    fill="#FF0000"
+                    d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
+                  />
+                </svg>
+                <span>YouTube</span>
               </span>
             );
           }
@@ -1134,20 +1209,19 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
               <span
                 style={{
                   position: 'absolute',
-                  top: 8,
-                  left: 8,
+                  top: 9,
+                  left: 9,
                   background: 'rgba(37, 99, 235, 0.92)',
                   color: '#fff',
-                  fontSize: '0.62rem',
-                  fontWeight: 900,
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  letterSpacing: '0.5px',
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: 7,
                   zIndex: 2,
                   boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
                 }}
               >
-                VIMEO
+                Vimeo
               </span>
             );
           }
