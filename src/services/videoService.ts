@@ -479,9 +479,19 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   }
 
   // 4. Direct / Local
+  let directUrl = cleanUrl;
+  if (cleanUrl.startsWith('/videos/')) {
+    try {
+      const decoded = decodeURIComponent(cleanUrl);
+      directUrl = encodeURI(decoded);
+    } catch {
+      directUrl = cleanUrl;
+    }
+  }
+
   return {
     type: 'direct',
-    embedUrl: cleanUrl,
+    embedUrl: directUrl,
     originalUrl: cleanUrl,
     label: cleanUrl.startsWith('/videos/') ? 'Local File' : 'Direct Link',
   };

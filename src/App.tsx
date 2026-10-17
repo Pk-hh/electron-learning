@@ -847,7 +847,7 @@ export function App() {
                 >
                   <video
                     ref={videoRef}
-                    src={activeVideo.video_url}
+                    src={sourceInfo.embedUrl || activeVideo.video_url}
                     className="player-video"
                     playsInline
                     onTimeUpdate={handleTimeUpdate}
@@ -859,6 +859,17 @@ export function App() {
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     autoPlay
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const rawUrl = (activeVideo.video_url || '').toLowerCase();
+                      if (rawUrl.includes('logic') && !target.src.endsWith('/videos/logic_gates.mp4')) {
+                        target.src = '/videos/logic_gates.mp4';
+                        target.play().catch(() => {});
+                      } else if (rawUrl.includes('junction') && !target.src.endsWith('/videos/pn_junction_diode.mp4')) {
+                        target.src = '/videos/pn_junction_diode.mp4';
+                        target.play().catch(() => {});
+                      }
+                    }}
                   />
 
                   {/* Toast message overlay on player */}

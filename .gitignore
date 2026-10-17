@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Media binaries (avoid GitHub 100MB file limit)
+*.mp4
+*.webm
+*.mov
+*.mkv
