@@ -825,8 +825,8 @@ export function App() {
             {/* Video Container (Sticky Cinema Player) */}
             {(() => {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
-              // Only YouTube & Vimeo require external iframe embed
-              const isIframe = sourceInfo.type === 'youtube' || sourceInfo.type === 'vimeo';
+              // Only YouTube & Vimeo without direct streams require external iframe embed
+              const isIframe = (sourceInfo.type === 'youtube' || sourceInfo.type === 'vimeo') && !sourceInfo.directStreamUrl;
 
               if (isIframe) {
                 return (

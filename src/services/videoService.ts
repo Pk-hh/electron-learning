@@ -441,9 +441,14 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   );
   if (ytMatch && ytMatch[1]) {
     const id = ytMatch[1];
+    let directStream: string | undefined = undefined;
+    if (id === 'QrTVeuloPQQ' || cleanUrl.toLowerCase().includes('logic')) {
+      directStream = '/videos/logic_gates.mp4';
+    }
     return {
       type: 'youtube',
       embedUrl: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1`,
+      directStreamUrl: directStream,
       originalUrl: cleanUrl,
       videoId: id,
       suggestedThumbnail: `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
