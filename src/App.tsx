@@ -5,8 +5,8 @@ import {
   ChevronRight, ChevronLeft, X, SlidersHorizontal, RefreshCw,
   Calculator, Atom, FlaskConical, Dna, Globe2, Languages, Cpu, Music2,
   History, PenTool, BarChart2, Microscope, Layers, GraduationCap,
-  Eye, ListVideo, Star, WifiOff, AlertTriangle, Info, Sparkles,
-  Share2, Zap, ChevronDown, ChevronUp, CheckCircle2,
+  Eye, ListVideo, WifiOff, AlertTriangle, Info, LayoutGrid,
+  Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
 } from 'lucide-react';
 import type { Video, Subject } from './types';
 import {
@@ -466,7 +466,6 @@ export function App() {
   };
 
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const featured = videos.find(v => v.views > 500) || videos[0];
   const popularVideos = [...videos].sort((a, b) => b.views - a.views).slice(0, 6);
   const recentVideos = [...videos].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6);
   const bookmarkedVideos = videos.filter(v => bookmarkIds.includes(v.id));
@@ -507,7 +506,7 @@ export function App() {
 
       {/* Network banner */}
       {!online && (
-        <div style={{ background: '#FEF3C7', borderBottom: '1px solid #FCD34D', padding: '0.5rem 2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: '#92400E', fontWeight: 600 }}>
+        <div style={{ background: 'var(--warning-light)', borderBottom: '1px solid rgba(217, 119, 6, 0.25)', padding: '0.5rem 2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--warning)', fontWeight: 600 }}>
           <WifiOff size={15} /> You're offline — showing cached content
         </div>
       )}
@@ -527,7 +526,12 @@ export function App() {
                 autoFocus
                 placeholder="Search lessons, subjects..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value.trim() && activeTab === 'home') {
+                    setActiveTab('library');
+                  }
+                }}
                 onKeyDown={e => e.key === 'Enter' && loadData()}
               />
               {searchQuery && (
@@ -592,7 +596,12 @@ export function App() {
                   type="text"
                   placeholder="Search lessons, topics..."
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={e => {
+                    setSearchQuery(e.target.value);
+                    if (e.target.value.trim() && activeTab === 'home') {
+                      setActiveTab('library');
+                    }
+                  }}
                   onKeyDown={e => e.key === 'Enter' && loadData()}
                 />
                 {searchQuery && (
@@ -635,10 +644,12 @@ export function App() {
 
         {/* Error */}
         {!loading && error && (
-          <div style={{ textAlign: 'center', padding: '5rem' }}>
-            <div style={{ display: 'inline-flex', background: '#FFF4EC', border: '2px solid var(--border)', borderRadius: 20, padding: '2.5rem', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-              <AlertTriangle size={44} color="var(--brand)" />
-              <p style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{error}</p>
+          <div style={{ textAlign: 'center', padding: '5rem 1.5rem' }}>
+            <div style={{ display: 'inline-flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)', padding: '2.5rem 3rem', flexDirection: 'column', alignItems: 'center', gap: '1rem', maxWidth: 440 }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--error-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={28} color="var(--error)" />
+              </div>
+              <p style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1rem' }}>{error}</p>
               <button className="btn-primary" onClick={loadData}><RefreshCw size={15} /> Try Again</button>
             </div>
           </div>
@@ -648,14 +659,14 @@ export function App() {
         {!loading && !error && activeTab === 'home' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
-            {/* Quick Horizontal Subject Carousel */}
+            {/* Subject Filter Bar */}
             {subjects.length > 0 && (
               <div className="subject-chips-bar">
                 <button
                   className={`subject-chip ${!selectedSubjectId ? 'active' : ''}`}
                   onClick={() => { setSelectedSubjectId(null); setActiveTab('library'); }}
                 >
-                  <Sparkles size={14} />
+                  <LayoutGrid size={15} />
                   <span>All Lessons</span>
                   <span className="chip-badge">{videos.length}</span>
                 </button>
@@ -672,36 +683,6 @@ export function App() {
                     </button>
                   );
                 })}
-              </div>
-            )}
-
-            {/* Featured Hero */}
-            {featured && (
-              <div className="hero-card" onClick={() => openVideo(featured)}>
-                <img src={featured.thumbnail_url || 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=1400'} alt={featured.title} className="hero-thumb" />
-                <div className="hero-overlay">
-                  <div className="hero-badge"><Star size={11} /> Featured Lesson</div>
-                  <h1 className="hero-title">{featured.title}</h1>
-                  <p className="hero-desc">{featured.description}</p>
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.25rem' }}>
-                    <button className="btn-primary" style={{ borderRadius: 50 }}>
-                      <Play size={15} fill="currentColor" /> Watch Now
-                    </button>
-                    <button className="btn-secondary" style={{ background: 'rgba(255,255,255,0.18)', border: '1.5px solid rgba(255,255,255,0.35)', color: '#fff', backdropFilter: 'blur(8px)' }}
-                      onClick={e => { e.stopPropagation(); handleToggleBookmark(featured.id); }}>
-                      <Bookmark size={14} fill={bookmarkIds.includes(featured.id) ? 'currentColor' : 'none'} />
-                      {bookmarkIds.includes(featured.id) ? 'Saved' : 'Save'}
-                    </button>
-                    <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Clock size={13} /> {formatDuration(featured.duration || 600)}
-                    </span>
-                    <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Eye size={13} /> {formatViewsCount(featured.views)}
-                      {featured.created_at && <span>• {formatTimeAgo(featured.created_at)}</span>}
-                    </span>
-                    {featured.subject_name && <span className="subject-pill">{featured.subject_name}</span>}
-                  </div>
-                </div>
               </div>
             )}
 
@@ -731,7 +712,7 @@ export function App() {
                 </div>
                 <div className="subjects-grid">
                   {subjects.map(s => (
-                    <div key={s.id} className="subject-card" style={{ borderColor: s.color || 'var(--brand)' }}
+                    <div key={s.id} className="subject-card"
                       onClick={() => { setSelectedSubjectId(s.id); setActiveTab('library'); }}>
                       <div className="subject-icon" style={{ background: s.color || 'var(--brand)' }}>
                         {getSubjectIcon(s)}
@@ -860,7 +841,7 @@ export function App() {
                   className={`subject-chip ${!selectedSubjectId ? 'active' : ''}`}
                   onClick={() => setSelectedSubjectId(null)}
                 >
-                  <Sparkles size={14} />
+                  <LayoutGrid size={15} />
                   <span>All Subjects</span>
                   <span className="chip-badge">{videos.length}</span>
                 </button>
@@ -962,7 +943,7 @@ export function App() {
                               alignItems: 'center',
                               flexWrap: 'wrap',
                               gap: '1rem',
-                              background: 'linear-gradient(to right, rgba(0,102,255,0.04), transparent)',
+                              background: 'linear-gradient(to right, rgba(37,99,235,0.06), transparent)',
                             }}
                           >
                             <div>
@@ -971,8 +952,9 @@ export function App() {
                                   style={{
                                     fontSize: '0.72rem',
                                     fontWeight: 800,
-                                    background: 'rgba(0,102,255,0.12)',
+                                    background: 'var(--brand-light)',
                                     color: 'var(--brand)',
+                                    border: '1px solid rgba(37, 99, 235, 0.18)',
                                     padding: '0.2rem 0.6rem',
                                     borderRadius: 6,
                                   }}
@@ -1096,32 +1078,10 @@ export function App() {
                 {(() => {
                   const sInfo = parseVideoSource(activeVideo.video_url);
                   if (sInfo.type === 'youtube') {
-                    return (
-                      <span className="player-nav-badge youtube">
-                        <svg width="12" height="12" viewBox="0 0 24 24">
-                          <path
-                            fill="#FF0000"
-                            d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
-                          />
-                        </svg>
-                        <span className="btn-label-desktop">YouTube</span>
-                      </span>
-                    );
+                    return <span className="player-nav-badge youtube">YouTube</span>;
                   }
                   if (sInfo.type === 'drive') {
-                    return (
-                      <span className="player-nav-badge drive" title="Google Drive Video">
-                        <svg width="12" height="12" viewBox="0 0 87.3 78">
-                          <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                          <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
-                          <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 10.15z" fill="#ea4335"/>
-                          <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                          <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                          <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                        </svg>
-                        <span className="btn-label-desktop">Google Drive</span>
-                      </span>
-                    );
+                    return <span className="player-nav-badge drive">Google Drive</span>;
                   }
                   return null;
                 })()}
@@ -1380,135 +1340,75 @@ export function App() {
                 </div>
               </div>
 
-              {/* Action Bar & Assist Cards */}
+              {/* Action Bar */}
               {(() => {
                 const sInfo = parseVideoSource(activeVideo.video_url);
                 const isYoutube = sInfo.type === 'youtube';
                 const isDrive = sInfo.type === 'drive';
                 const isCompleted = (getLocalProgress(activeVideo.id)?.position ?? 0) >= (activeVideo.duration || 60);
 
-                if (isDrive) {
-                  return (
-                    <div className="player-action-bar">
-                      <button
-                        className={`player-action-item ${bookmarked ? 'active' : ''}`}
-                        onClick={() => handleToggleBookmark(activeVideo.id)}
-                      >
-                        <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
-                        <span>{bookmarked ? 'Saved' : 'Save'}</span>
-                      </button>
-
-                      <a
-                        href={`https://drive.google.com/file/d/${sInfo.videoId || ''}/view?usp=sharing`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="player-action-item"
-                        style={{ color: '#0F9D58', textDecoration: 'none' }}
-                        title="Open directly in Google Drive app"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 87.3 78" style={{ display: 'inline-block' }}>
-                          <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                          <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
-                          <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 10.15z" fill="#ea4335"/>
-                          <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                          <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                          <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                        </svg>
-                        <span style={{ fontWeight: 800 }}>Drive App ↗</span>
-                      </a>
-
-                      <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
-                        <Share2 size={18} />
-                        <span>Share</span>
-                      </button>
-
-                      <button
-                        className={`player-action-item ${isCompleted ? 'active' : ''}`}
-                        onClick={() => {
-                          saveLocalProgress(activeVideo.id, activeVideo.duration || 100, activeVideo.duration || 100);
-                          refreshLocalData();
-                          showToast('Marked as Completed! 🎉');
-                        }}
-                      >
-                        <CheckCircle2 size={18} color={isCompleted ? 'var(--brand)' : 'currentColor'} />
-                        <span>{isCompleted ? 'Completed' : 'Done ✓'}</span>
-                      </button>
-                    </div>
-                  );
-                }
-
-                if (isYoutube) {
-                  return (
-                    <div className="player-action-bar">
-                      <button
-                        className={`player-action-item ${bookmarked ? 'active' : ''}`}
-                        onClick={() => handleToggleBookmark(activeVideo.id)}
-                      >
-                        <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
-                        <span>{bookmarked ? 'Saved' : 'Save'}</span>
-                      </button>
-
-                      <a
-                        href={`https://www.youtube.com/watch?v=${sInfo.videoId || ''}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="player-action-item"
-                        style={{ color: '#DC2626', textDecoration: 'none' }}
-                        title="Watch directly on YouTube"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" style={{ display: 'inline-block' }}>
-                          <path
-                            fill="#FF0000"
-                            d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
-                          />
-                        </svg>
-                        <span style={{ fontWeight: 800 }}>YouTube ↗</span>
-                      </a>
-
-                      <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
-                        <Share2 size={18} />
-                        <span>Share</span>
-                      </button>
-
-                      <button
-                        className={`player-action-item ${isCompleted ? 'active' : ''}`}
-                        onClick={() => {
-                          saveLocalProgress(activeVideo.id, activeVideo.duration || 100, activeVideo.duration || 100);
-                          refreshLocalData();
-                          showToast('Marked as Completed! 🎉');
-                        }}
-                      >
-                        <CheckCircle2 size={18} color={isCompleted ? 'var(--brand)' : 'currentColor'} />
-                        <span>{isCompleted ? 'Completed' : 'Done ✓'}</span>
-                      </button>
-                    </div>
-                  );
-                }
-
                 return (
                   <div className="player-action-bar">
                     <button
                       className={`player-action-item ${bookmarked ? 'active' : ''}`}
                       onClick={() => handleToggleBookmark(activeVideo.id)}
+                      title={bookmarked ? 'Saved to bookmarks' : 'Save lesson'}
                     >
-                      <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
+                      <Bookmark size={17} fill={bookmarked ? 'currentColor' : 'none'} />
                       <span>{bookmarked ? 'Saved' : 'Save'}</span>
                     </button>
 
-                    <button className="player-action-item" onClick={handleCycleSpeed}>
-                      <Zap size={18} color="var(--brand)" />
-                      <span>{playbackSpeed}× Speed</span>
+                    <button
+                      className={`player-action-item ${isCompleted ? 'active' : ''}`}
+                      onClick={() => {
+                        const targetPos = isCompleted ? 0 : (activeVideo.duration || 100);
+                        saveLocalProgress(activeVideo.id, targetPos, activeVideo.duration || 100);
+                        refreshLocalData();
+                        showToast(isCompleted ? 'Marked as uncompleted' : 'Marked as completed');
+                      }}
+                      title="Toggle completion status"
+                    >
+                      <CheckCircle2 size={17} color={isCompleted ? 'var(--brand)' : 'currentColor'} />
+                      <span>{isCompleted ? 'Completed' : 'Complete'}</span>
                     </button>
 
-                    <button className="player-action-item" onClick={() => handleShare(activeVideo)}>
-                      <Share2 size={18} />
+                    <button className="player-action-item" onClick={() => handleShare(activeVideo)} title="Share lesson link">
+                      <Share2 size={17} />
                       <span>Share</span>
                     </button>
 
-                    <button className="player-action-item" onClick={handleFullscreen}>
-                      <Maximize size={18} />
-                      <span>Fullscreen</span>
+                    <button className="player-action-item" onClick={handleCycleSpeed} title="Playback speed">
+                      <Zap size={17} />
+                      <span>{playbackSpeed}× Speed</span>
                     </button>
+
+                    {isYoutube && sInfo.videoId && (
+                      <a
+                        href={`https://www.youtube.com/watch?v=${sInfo.videoId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="player-action-item"
+                        title="Watch on YouTube"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        <ExternalLink size={17} />
+                        <span>YouTube</span>
+                      </a>
+                    )}
+
+                    {isDrive && sInfo.videoId && (
+                      <a
+                        href={`https://drive.google.com/file/d/${sInfo.videoId}/view?usp=sharing`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="player-action-item"
+                        title="Open in Google Drive"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        <ExternalLink size={17} />
+                        <span>Drive</span>
+                      </a>
+                    )}
                   </div>
                 );
               })()}
@@ -1558,8 +1458,9 @@ export function App() {
                           style={{
                             fontSize: '0.72rem',
                             fontWeight: 700,
-                            background: 'rgba(0, 102, 255, 0.12)',
+                            background: 'var(--brand-light)',
                             color: 'var(--brand)',
+                            border: '1px solid rgba(37, 99, 235, 0.18)',
                             padding: '0.15rem 0.5rem',
                             borderRadius: 6,
                           }}
@@ -1580,18 +1481,11 @@ export function App() {
                               }}
                               style={{
                                 border: isCurrent ? '2px solid var(--brand)' : undefined,
-                                background: isCurrent ? 'rgba(0, 102, 255, 0.06)' : undefined,
+                                background: isCurrent ? 'var(--brand-light)' : undefined,
                               }}
                             >
                               <div className="up-next-card-thumb-wrap">
-                                <img
-                                  src={
-                                    v.thumbnail_url ||
-                                    'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=260'
-                                  }
-                                  alt={v.title}
-                                  className="up-next-card-thumb"
-                                />
+                                <VideoThumbnail video={v} className="up-next-card-thumb" />
                                 <span className="up-next-badge-duration">{formatDuration(v.duration || 600)}</span>
                                 <div className="up-next-play-hover">
                                   <Play size={16} fill="#fff" />
@@ -1644,14 +1538,7 @@ export function App() {
                       {otherVideos.map((v, idx) => (
                         <div key={v.id} className="up-next-video-card" onClick={() => openVideo(v)}>
                           <div className="up-next-card-thumb-wrap">
-                            <img
-                              src={
-                                v.thumbnail_url ||
-                                'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=260'
-                              }
-                              alt={v.title}
-                              className="up-next-card-thumb"
-                            />
+                            <VideoThumbnail video={v} className="up-next-card-thumb" />
                             <span className="up-next-badge-duration">{formatDuration(v.duration || 600)}</span>
                             <div className="up-next-play-hover">
                               <Play size={16} fill="#fff" />
@@ -1712,6 +1599,123 @@ export function App() {
   );
 }
 
+// ── Video Thumbnail ───────────────────────────────────────────────────────────
+interface VideoThumbnailProps {
+  video: Video;
+  className?: string;
+}
+
+function VideoThumbnail({ video, className = 'video-thumb' }: VideoThumbnailProps) {
+  const [imgError, setImgError] = useState(false);
+  const rawUrl = video.thumbnail_url?.trim();
+  const isInvalidUnsplash = rawUrl?.includes('unsplash.com') && (rawUrl.includes('photo-1635070041078') || rawUrl.includes('photo-1509228627152'));
+  const validUrl = isInvalidUnsplash ? null : rawUrl;
+
+  const [imgSrc, setImgSrc] = useState<string | null>(validUrl || null);
+
+  useEffect(() => {
+    const raw = video.thumbnail_url?.trim();
+    const badUnsplash = raw?.includes('unsplash.com') && (raw.includes('photo-1635070041078') || raw.includes('photo-1509228627152'));
+    setImgSrc(badUnsplash ? null : (raw || null));
+    setImgError(false);
+  }, [video.thumbnail_url]);
+
+  if (!imgSrc || imgError) {
+    const subjName = video.subject_name || 'electrON Lecture';
+    return (
+      <div
+        className={`${className} fallback-thumb`}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+          padding: '0.85rem',
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+          userSelect: 'none',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(circle at 50% 25%, rgba(37, 99, 235, 0.25) 0%, transparent 70%)',
+          }}
+        />
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            background: 'rgba(37, 99, 235, 0.2)',
+            border: '1px solid rgba(59, 130, 246, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#60A5FA',
+            marginBottom: '0.35rem',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          <BookOpen size={18} />
+        </div>
+        <span
+          style={{
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            color: '#93C5FD',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {subjName}
+        </span>
+        <span
+          style={{
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            color: '#F8FAFC',
+            lineHeight: 1.25,
+            marginTop: 2,
+            maxWidth: '92%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {video.title}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imgSrc}
+      alt={video.title}
+      className={className}
+      loading="lazy"
+      onError={() => {
+        if (imgSrc.includes('maxresdefault.jpg')) {
+          setImgSrc(imgSrc.replace('maxresdefault.jpg', 'hqdefault.jpg'));
+        } else {
+          setImgError(true);
+        }
+      }}
+    />
+  );
+}
+
 // ── Video Card ────────────────────────────────────────────────────────────────
 interface VideoCardProps {
   video: Video;
@@ -1722,104 +1726,39 @@ interface VideoCardProps {
 }
 
 function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: VideoCardProps) {
+  const parsed = parseVideoSource(video.video_url);
+
   return (
     <div className="video-card" onClick={onPlay}>
       <div className="video-thumb-wrap">
-        <img
-          src={video.thumbnail_url || 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=400'}
-          alt={video.title}
-          className="video-thumb"
-          loading="lazy"
-          onError={e => {
-            const target = e.currentTarget as HTMLImageElement;
-            if (target.src.includes('maxresdefault.jpg')) {
-              target.src = target.src.replace('maxresdefault.jpg', 'hqdefault.jpg');
-            } else if (!target.src.includes('unsplash.com')) {
-              target.src = 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400';
-            }
-          }}
-        />
-        {(() => {
-          const parsed = parseVideoSource(video.video_url);
-          if (parsed.type === 'youtube') {
-            return (
-              <span className="youtube-card-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                  <path
-                    fill="#FF0000"
-                    d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
-                  />
-                </svg>
-                <span>YouTube</span>
-              </span>
-            );
-          }
-          if (parsed.type === 'vimeo') {
-            return (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 9,
-                  left: 9,
-                  background: 'rgba(37, 99, 235, 0.92)',
-                  color: '#fff',
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  padding: '3px 8px',
-                  borderRadius: 7,
-                  zIndex: 2,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                }}
-              >
-                Vimeo
-              </span>
-            );
-          }
-          if (parsed.type === 'drive') {
-            return (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 9,
-                  left: 9,
-                  background: 'rgba(15, 157, 88, 0.95)',
-                  color: '#fff',
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  padding: '3px 8px',
-                  borderRadius: 7,
-                  zIndex: 2,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 87.3 78" style={{ flexShrink: 0 }}>
-                  <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                  <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
-                  <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 10.15z" fill="#ea4335"/>
-                  <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                  <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                  <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                </svg>
-                <span>Drive</span>
-              </span>
-            );
-          }
-          return null;
-        })()}
+        <VideoThumbnail video={video} className="video-thumb" />
+
+        {parsed.type === 'youtube' && (
+          <span className="youtube-card-badge">
+            <Play size={10} fill="#EF4444" color="#EF4444" />
+            <span>YouTube</span>
+          </span>
+        )}
+        {parsed.type === 'drive' && (
+          <span className="youtube-card-badge">
+            <BookOpen size={11} color="#10B981" />
+            <span>Drive</span>
+          </span>
+        )}
+
         <div className="video-play-overlay">
-          <Play size={22} fill="currentColor" />
+          <Play size={20} fill="currentColor" />
         </div>
         <span className="video-duration">
-          <Clock size={10} style={{ display: 'inline', marginRight: 3 }} />
           {formatDuration(video.duration || 600)}
         </span>
         {progressPct !== undefined && progressPct > 0 && (
-          <div className="video-progress-bar"><div className="video-progress-fill" style={{ width: `${progressPct}%` }} /></div>
+          <div className="video-progress-bar">
+            <div className="video-progress-fill" style={{ width: `${progressPct}%` }} />
+          </div>
         )}
       </div>
+
       <div className="video-info">
         <div className="video-title">{video.title}</div>
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', margin: '0.4rem 0', flexWrap: 'wrap' }}>
@@ -1827,30 +1766,34 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
           {(video.unit || video.chapter) && (
             <span
               style={{
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                color: '#2563eb',
-                background: 'rgba(59, 130, 246, 0.08)',
-                padding: '0.12rem 0.45rem',
-                borderRadius: 5,
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: 6,
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 3,
+                gap: 4,
               }}
             >
-              <ListVideo size={10} /> {video.unit || video.chapter}
+              <ListVideo size={11} color="var(--brand)" /> {video.unit || video.chapter}
             </span>
           )}
         </div>
         {video.description && <div className="video-desc">{video.description}</div>}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem' }}>
-          <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Eye size={11} /> {formatViewsCount(video.views)}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)' }}>
+          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Eye size={12} /> {formatViewsCount(video.views)}
             {video.created_at && <span>• {formatTimeAgo(video.created_at)}</span>}
           </span>
-          <button className="icon-btn" onClick={e => { e.stopPropagation(); onBookmark(); }}
+          <button
+            className="icon-btn"
+            onClick={e => { e.stopPropagation(); onBookmark(); }}
             style={{ padding: '0.35rem', color: isBookmarked ? 'var(--brand)' : undefined }}
-            title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}>
+            title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}
+          >
             <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
           </button>
         </div>

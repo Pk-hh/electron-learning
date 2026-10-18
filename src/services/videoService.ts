@@ -186,7 +186,7 @@ function docToSubject(d: QueryDocumentSnapshot): Subject {
     name: data.name ?? '',
     description: data.description ?? '',
     icon: data.icon ?? '📚',
-    color: data.color ?? '#F97316',
+    color: data.color ?? '#2563EB',
     units: Array.isArray(data.units) ? data.units : [],
   };
 }
