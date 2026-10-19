@@ -837,54 +837,6 @@ export function App() {
         {!loading && !error && activeTab === 'home' && (
           <div key="home" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
 
-            {/* Native Subject Stories Row (Instagram/Duolingo Style App Experience) */}
-            {subjects.length > 0 && (
-              <div className="stories-section">
-                <div className="stories-heading">
-                  <span>Explore Disciplines</span>
-                  <button
-                    onClick={() => setActiveTab('library')}
-                    style={{ background: 'none', border: 'none', color: 'var(--brand)', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}
-                  >
-                    View All <ChevronRight size={13} />
-                  </button>
-                </div>
-                <div className="stories-scroll-row">
-                  <button
-                    className={`story-item ${!selectedSubjectId ? 'active' : ''}`}
-                    onClick={() => { setSelectedSubjectId(null); setActiveTab('library'); }}
-                  >
-                    <div className="story-ring">
-                      <div className="story-inner">
-                        <LayoutGrid size={20} />
-                      </div>
-                    </div>
-                    <span className="story-name">All Subjects</span>
-                  </button>
-                  {subjects.map(s => {
-                    const isSel = selectedSubjectId === s.id;
-                    return (
-                      <button
-                        key={s.id}
-                        className={`story-item ${isSel ? 'active' : ''}`}
-                        onClick={() => {
-                          setSelectedSubjectId(s.id);
-                          setActiveTab('library');
-                        }}
-                      >
-                        <div className="story-ring">
-                          <div className="story-inner">
-                            {getSubjectIcon(s)}
-                          </div>
-                        </div>
-                        <span className="story-name">{s.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* Welcoming Header (Clean, Authentic, Focused) */}
             <div className="home-welcome-header">
               <div className="home-welcome-content">
@@ -1044,22 +996,19 @@ export function App() {
                   <div className="course-hero-icon-box">
                     {activeSubject ? getSubjectIcon(activeSubject) : <GraduationCap size={32} />}
                   </div>
-                  <div>
-                    <span className="course-hero-badge">
-                      <BookOpen size={12} /> {activeSubject ? 'Certified Curriculum' : 'Academic Master Library'}
-                    </span>
+                  <div className="course-hero-info">
                     <h1 className="course-hero-title">
-                      {activeSubject ? activeSubject.name : 'All Courses & Curriculums'}
+                      {activeSubject ? activeSubject.name : 'Courses & Curriculums'}
                     </h1>
                     <p className="course-hero-desc">
                       {activeSubject
-                        ? (activeSubject.description || `Comprehensive, structured lessons and resources in ${activeSubject.name} designed to take you from fundamentals to mastery.`)
-                        : 'Explore complete course modules, structured unit playlists, and downloadable study materials across all academic disciplines.'}
+                        ? (activeSubject.description || `Structured video lessons and study materials in ${activeSubject.name}.`)
+                        : 'Structured video modules, unit playlists, and study notes.'}
                     </p>
                     <div className="course-hero-stats">
                       <div className="course-stat-pill">
                         <Layers size={13} color="var(--brand)" />
-                        <span><strong>{unitCount}</strong> {unitCount === 1 ? 'Unit / Module' : 'Units / Modules'}</span>
+                        <span><strong>{unitCount}</strong> {unitCount === 1 ? 'Unit' : 'Units'}</span>
                       </div>
                       <div className="course-stat-pill">
                         <ListVideo size={13} color="var(--brand)" />
@@ -1067,12 +1016,12 @@ export function App() {
                       </div>
                       <div className="course-stat-pill">
                         <Clock size={13} color="var(--brand)" />
-                        <span><strong>{durationStr}</strong> Total Content</span>
+                        <span>{durationStr}</span>
                       </div>
                       {materialsCount > 0 && (
                         <div className="course-stat-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.25)', color: '#059669', background: 'rgba(16, 185, 129, 0.08)' }}>
                           <Paperclip size={13} color="#059669" />
-                          <span><strong>{materialsCount}</strong> Study Materials</span>
+                          <span><strong>{materialsCount}</strong> Notes</span>
                         </div>
                       )}
                     </div>

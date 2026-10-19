@@ -2332,14 +2332,14 @@ html, body {
 .course-hero-banner {
   background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
   border-radius: var(--radius-xl);
-  padding: 1.75rem 1.6rem;
+  padding: 1.5rem 1.6rem;
   color: #FFFFFF;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 1.25rem;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   position: relative;
   overflow: hidden;
 }
@@ -2352,14 +2352,14 @@ html, body {
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.22) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, transparent 70%);
   pointer-events: none;
 }
 
 .course-hero-left {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1.15rem;
   flex: 1;
   min-width: 280px;
   position: relative;
@@ -2367,69 +2367,58 @@ html, body {
 }
 
 .course-hero-icon-box {
-  width: 62px;
-  height: 62px;
-  border-radius: var(--radius-lg);
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #2563EB 0%, #38BDF8 100%);
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .course-hero-info {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-}
-
-.course-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: #93C5FD;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  gap: 0.3rem;
 }
 
 .course-hero-title {
-  font-size: 1.45rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: #F8FAFC;
   line-height: 1.25;
+  letter-spacing: -0.02em;
 }
 
 .course-hero-desc {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   color: #94A3B8;
-  max-width: 580px;
+  max-width: 540px;
   line-height: 1.45;
 }
 
 .course-hero-stats {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
-  margin-top: 0.4rem;
+  margin-top: 0.35rem;
 }
 
 .course-stat-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #E2E8F0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.25rem 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.22rem 0.6rem;
   border-radius: var(--radius-full);
-  backdrop-filter: blur(8px);
 }
 
 .course-hero-actions {
