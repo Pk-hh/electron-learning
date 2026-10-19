@@ -858,6 +858,26 @@ export function App() {
               </div>
             )}
 
+            {/* Welcoming Header (Clean, Authentic, Focused) */}
+            <div className="home-welcome-header">
+              <div className="home-welcome-content">
+                <h1 className="home-welcome-title">Master Your Engineering Concepts</h1>
+                <p className="home-welcome-sub">
+                  Structured video lectures, organized unit playlists, and progress tracking designed for focused study.
+                </p>
+                <div className="home-welcome-stats">
+                  <div className="home-stat-chip">
+                    <Layers size={14} color="var(--brand)" />
+                    <span><strong>{subjects.length}</strong> Disciplines</span>
+                  </div>
+                  <div className="home-stat-chip">
+                    <ListVideo size={14} color="var(--brand)" />
+                    <span><strong>{videos.length}</strong> Lessons</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Native Continue Learning Hero Card (Mobile-First 1-Tap Resume) */}
             {continueWatchingVideos.length > 0 && (() => {
               const topCW = continueWatchingVideos[0];
@@ -890,53 +910,6 @@ export function App() {
                 </div>
               );
             })()}
-
-            {/* Welcoming Header (Clean, Authentic, Focused) */}
-            <div className="home-welcome-header">
-              <div className="home-welcome-content">
-                <h1 className="home-welcome-title">Master Your Engineering Concepts</h1>
-                <p className="home-welcome-sub">
-                  Structured video lectures, organized unit playlists, and progress tracking designed for focused study.
-                </p>
-                <div className="home-welcome-stats">
-                  <div className="home-stat-chip">
-                    <Layers size={14} color="var(--brand)" />
-                    <span><strong>{subjects.length}</strong> Disciplines</span>
-                  </div>
-                  <div className="home-stat-chip">
-                    <ListVideo size={14} color="var(--brand)" />
-                    <span><strong>{videos.length}</strong> Lessons</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Subject Filter Bar */}
-            {subjects.length > 0 && (
-              <div className="subject-chips-bar">
-                <button
-                  className={`subject-chip ${!selectedSubjectId ? 'active' : ''}`}
-                  onClick={() => { setSelectedSubjectId(null); setActiveTab('library'); }}
-                >
-                  <LayoutGrid size={15} />
-                  <span>All Lessons</span>
-                  <span className="chip-badge">{videos.length}</span>
-                </button>
-                {subjects.map(s => {
-                  const isSelected = selectedSubjectId === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      className={`subject-chip ${isSelected ? 'active' : ''}`}
-                      onClick={() => { setSelectedSubjectId(s.id); setActiveTab('library'); }}
-                    >
-                      <span className="chip-icon">{getSubjectIcon(s)}</span>
-                      <span>{s.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
 
             {/* Browse Subjects */}
             {subjects.length > 0 && (
