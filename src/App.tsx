@@ -1263,6 +1263,12 @@ export function App() {
                                           <div className="course-lesson-details">
                                             <h4 className="course-lesson-title">{v.title}</h4>
                                             <div className="course-lesson-meta-row">
+                                              {v.is_live && (
+                                                <span className={`live-stream-badge mini ${(!v.scheduled_at || new Date(v.scheduled_at).getTime() <= Date.now()) ? 'active' : 'scheduled'}`}>
+                                                  <span className="live-dot" />
+                                                  {(!v.scheduled_at || new Date(v.scheduled_at).getTime() <= Date.now()) ? 'LIVE' : 'PREMIERE'}
+                                                </span>
+                                              )}
                                               <span className="course-lesson-duration-badge">
                                                 <Clock size={11} />
                                                 {formatDuration(v.duration || 600)}
@@ -1352,6 +1358,12 @@ export function App() {
                                         <div className="course-lesson-details">
                                           <h4 className="course-lesson-title">{v.title}</h4>
                                           <div className="course-lesson-meta-row">
+                                            {v.is_live && (
+                                              <span className={`live-stream-badge mini ${(!v.scheduled_at || new Date(v.scheduled_at).getTime() <= Date.now()) ? 'active' : 'scheduled'}`}>
+                                                <span className="live-dot" />
+                                                {(!v.scheduled_at || new Date(v.scheduled_at).getTime() <= Date.now()) ? 'LIVE' : 'PREMIERE'}
+                                              </span>
+                                            )}
                                             <span className="course-lesson-duration-badge">
                                               <Clock size={11} />
                                               {formatDuration(v.duration || 600)}
@@ -1715,8 +1727,13 @@ export function App() {
                 videoSrc = sourceInfo.directStreamUrl || activeVideo.video_url;
               }
 
-              // On cloud streaming links without local video, stream with our custom player UI on top
-              const renderYouTubeStream = !videoSrc && (sourceInfo.type === 'youtube' || fallbackToIframe);
+              // Live Stream / Premiere checks
+              const isLive = Boolean(activeVideo.is_live);
+              const schedTime = activeVideo.scheduled_at ? new Date(activeVideo.scheduled_at).getTime() : 0;
+              const isUpcomingPremiere = isLive && schedTime > Date.now();
+
+              // Fallback streaming renderers if not an offline/direct MP4
+              const renderYouTubeStream = !videoSrc && sourceInfo.type === 'youtube';
               const renderDriveStream = !videoSrc && sourceInfo.type === 'drive';
 
               return (
@@ -1729,7 +1746,49 @@ export function App() {
                   }}
                   onMouseMove={resetControlsTimeout}
                 >
-                  {renderYouTubeStream ? (
+                  {isUpcomingPremiere ? (
+                    <div className="live-premiere-countdown-screen">
+                      <div className="live-premiere-box">
+                        <div className="live-premiere-pill">
+                          <Radio size={14} className="pulse-red" /> SCHEDULED LIVE PREMIERE
+                        </div>
+                        <h2 className="live-premiere-title">{activeVideo.title}</h2>
+                        <p className="live-premiere-sub">
+                          This lecture is scheduled to premiere live on{' '}
+                          <strong>{new Date(schedTime).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>.
+                        </p>
+                        <div className="live-countdown-grid">
+                          <div className="live-countdown-item">
+                            <span className="live-countdown-num">
+                              {Math.max(0, Math.floor((schedTime - Date.now()) / (1000 * 60 * 60 * 24)))}
+                            </span>
+                            <span className="live-countdown-label">Days</span>
+                          </div>
+                          <div className="live-countdown-item">
+                            <span className="live-countdown-num">
+                              {Math.max(0, Math.floor(((schedTime - Date.now()) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)))}
+                            </span>
+                            <span className="live-countdown-label">Hours</span>
+                          </div>
+                          <div className="live-countdown-item">
+                            <span className="live-countdown-num">
+                              {Math.max(0, Math.floor(((schedTime - Date.now()) % (1000 * 60 * 60)) / (1000 * 60)))}
+                            </span>
+                            <span className="live-countdown-label">Mins</span>
+                          </div>
+                          <div className="live-countdown-item">
+                            <span className="live-countdown-num">
+                              {Math.max(0, Math.floor(((schedTime - Date.now()) % (1000 * 60)) / 1000))}
+                            </span>
+                            <span className="live-countdown-label">Secs</span>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: '1.25rem', fontSize: '0.82rem', color: '#94A3B8' }}>
+                          Stay tuned! The live stream will begin automatically when the countdown ends.
+                        </div>
+                      </div>
+                    </div>
+                  ) : renderYouTubeStream ? (
                     <iframe
                       ref={iframeRef}
                       src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=${window.location.origin}`}
@@ -2633,19 +2692,35 @@ interface VideoCardProps {
 
 function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: VideoCardProps) {
   const parsed = parseVideoSource(video.video_url);
+  const isLiveStream = Boolean(video.is_live);
+  const scheduledTime = video.scheduled_at ? new Date(video.scheduled_at).getTime() : 0;
+  const now = Date.now();
+  const isUpcoming = isLiveStream && scheduledTime > now;
+  const isCurrentlyLive = isLiveStream && scheduledTime <= now;
 
   return (
-    <div className="video-card" onClick={onPlay}>
+    <div className={`video-card ${isCurrentlyLive ? 'is-live-card' : ''}`} onClick={onPlay}>
       <div className="video-thumb-wrap">
         <VideoThumbnail video={video} className="video-thumb" />
 
-        {parsed.type === 'youtube' && (
+        {isCurrentlyLive && (
+          <span className="live-stream-badge active">
+            <span className="live-dot" /> LIVE
+          </span>
+        )}
+        {isUpcoming && (
+          <span className="live-stream-badge scheduled">
+            <Radio size={11} /> PREMIERE
+          </span>
+        )}
+
+        {!isLiveStream && parsed.type === 'youtube' && (
           <span className="youtube-card-badge">
             <Play size={10} fill="#EF4444" color="#EF4444" />
             <span>YouTube</span>
           </span>
         )}
-        {parsed.type === 'drive' && (
+        {!isLiveStream && parsed.type === 'drive' && (
           <span className="youtube-card-badge">
             <BookOpen size={11} color="#10B981" />
             <span>Drive</span>
@@ -2656,7 +2731,7 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
           <Play size={20} fill="currentColor" />
         </div>
         <span className="video-duration">
-          {formatDuration(video.duration || 600)}
+          {isCurrentlyLive ? 'STREAMING NOW' : isUpcoming ? new Date(scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : formatDuration(video.duration || 600)}
         </span>
         {progressPct !== undefined && progressPct > 0 && (
           <div className="video-progress-bar">
