@@ -8,6 +8,7 @@ import {
   Eye, ListVideo, WifiOff, AlertTriangle, Info, LayoutGrid,
   Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
   FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Paperclip,
+  Radio, Activity, Code, Wrench,
 } from 'lucide-react';
 import type { Video, Subject, LessonNote } from './types';
 import {
@@ -42,15 +43,54 @@ const SUBJECT_ICONS: Record<string, React.ReactNode> = {
   geography:   <Globe2 size={20} />,
   english:     <Languages size={20} />,
   computer:    <Cpu size={20} />,
+  coding:      <Code size={20} />,
+  software:    <Code size={20} />,
+  programming: <Code size={20} />,
   music:       <Music2 size={20} />,
   history:     <History size={20} />,
   art:         <PenTool size={20} />,
   economics:   <BarChart2 size={20} />,
+  signals:     <Activity size={20} />,
+  systems:     <Activity size={20} />,
+  fbec:        <Zap size={20} />,
+  electrical:  <Zap size={20} />,
+  electronics: <Cpu size={20} />,
+  circuit:     <Zap size={20} />,
+  circuits:    <Zap size={20} />,
+  lab:         <FlaskConical size={20} />,
+  laboratory:  <FlaskConical size={20} />,
+  workshop:    <Wrench size={20} />,
+  wireless:    <Radio size={20} />,
+  network:     <Globe2 size={20} />,
 };
 
 function getSubjectIcon(subject: Subject) {
-  const key = subject.name?.toLowerCase().split(' ')[0] ?? '';
-  return SUBJECT_ICONS[key] ?? <BookOpen size={20} />;
+  const name = (subject.name ?? '').toLowerCase();
+  for (const [key, icon] of Object.entries(SUBJECT_ICONS)) {
+    if (name.includes(key)) return icon;
+  }
+  return <BookOpen size={20} />;
+}
+
+// ── Strict & Safe Subject Matcher ─────────────────────────────────────────────
+// Prevents substring collision (e.g., "FBEC" matching inside "FBEC LAB")
+function isVideoOfSubject(v: Video, s: Subject): boolean {
+  const vidSubjId = (v.subject_id ?? '').trim().toLowerCase();
+  const vidSubjName = (v.subject_name ?? '').trim().toLowerCase();
+  const targetId = (s.id ?? '').trim().toLowerCase();
+  const targetName = (s.name ?? '').trim().toLowerCase();
+
+  // 1. Direct ID match
+  if (targetId && vidSubjId && targetId === vidSubjId) return true;
+
+  // 2. Exact name match
+  if (targetName && vidSubjName && targetName === vidSubjName) return true;
+
+  // 3. Fallback: ID matches name or vice-versa exactly
+  if (targetName && vidSubjId && targetName === vidSubjId) return true;
+  if (targetId && vidSubjName && targetId === vidSubjName) return true;
+
+  return false;
 }
 
 // ── Progress record ───────────────────────────────────────────────────────────
@@ -624,23 +664,10 @@ export function App() {
     // 2. If no subject filter is selected, show all videos
     if (!selectedSubjectId || selectedSubjectId === '') return true;
 
-    // 3. Subject matching: Compare both ID and Name
+    // 3. Subject matching using clean helper
     const targetSubj = subjects.find(s => s.id === selectedSubjectId);
-    const targetName = (targetSubj?.name ?? '').toLowerCase().trim();
-    const targetId = selectedSubjectId.toLowerCase().trim();
-
-    const vidSubjId = (v.subject_id ?? '').toLowerCase().trim();
-    const vidSubjName = (v.subject_name ?? '').toLowerCase().trim();
-
-    const matchesSubject =
-      (targetId && vidSubjId === targetId) ||
-      (targetName && vidSubjName === targetName) ||
-      (targetName && vidSubjId === targetName) ||
-      (targetId && vidSubjName === targetId) ||
-      (targetName && vidSubjName.includes(targetName)) ||
-      (vidSubjName && targetName.includes(vidSubjName));
-
-    return matchesSubject;
+    if (!targetSubj) return false;
+    return isVideoOfSubject(v, targetSubj);
   });
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -922,20 +949,7 @@ export function App() {
                 </div>
                 <div className="subjects-grid">
                   {subjects.map(s => {
-                    const count = videos.filter(v => {
-                      const vidSubjId = (v.subject_id ?? '').toLowerCase().trim();
-                      const vidSubjName = (v.subject_name ?? '').toLowerCase().trim();
-                      const targetId = s.id.toLowerCase().trim();
-                      const targetName = (s.name ?? '').toLowerCase().trim();
-                      return (
-                        (targetId && vidSubjId === targetId) ||
-                        (targetName && vidSubjName === targetName) ||
-                        (targetName && vidSubjId === targetName) ||
-                        (targetId && vidSubjName === targetId) ||
-                        (targetName && vidSubjName.includes(targetName)) ||
-                        (vidSubjName && targetName.includes(vidSubjName))
-                      );
-                    }).length;
+                    const count = videos.filter(v => isVideoOfSubject(v, s)).length;
 
                     return (
                       <div
@@ -1158,20 +1172,7 @@ export function App() {
                   </button>
                   {subjects.map(s => {
                     const isSelected = selectedSubjectId === s.id;
-                    const count = videos.filter(v => {
-                      const vidSubjId = (v.subject_id ?? '').toLowerCase().trim();
-                      const vidSubjName = (v.subject_name ?? '').toLowerCase().trim();
-                      const targetId = s.id.toLowerCase().trim();
-                      const targetName = (s.name ?? '').toLowerCase().trim();
-                      return (
-                        (targetId && vidSubjId === targetId) ||
-                        (targetName && vidSubjName === targetName) ||
-                        (targetName && vidSubjId === targetName) ||
-                        (targetId && vidSubjName === targetId) ||
-                        (targetName && vidSubjName.includes(targetName)) ||
-                        (vidSubjName && targetName.includes(vidSubjName))
-                      );
-                    }).length;
+                    const count = videos.filter(v => isVideoOfSubject(v, s)).length;
 
                     return (
                       <button
