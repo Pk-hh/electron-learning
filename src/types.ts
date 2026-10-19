@@ -38,3 +38,14 @@ export interface BookmarkItem {
   videoId: string;
   bookmarkedAt: string;
 }
+
+export interface LessonNote {
+  id: string;
+  videoId: string;
+  videoTitle: string;
+  subjectName?: string;
+  timestamp: number;          // seconds into video where note was recorded
+  text: string;
+  createdAt: string;
+  updatedAt?: string;
+}

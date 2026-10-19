@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Play, Pause, RotateCcw, RotateCw, Maximize, Volume2, VolumeX,
-  Bookmark, Search, BookOpen, Home, Library, Clock, TrendingUp,
+  Bookmark, Search, BookOpen, Home, Clock, TrendingUp,
   ChevronRight, ChevronLeft, X, SlidersHorizontal, RefreshCw,
   Calculator, Atom, FlaskConical, Dna, Globe2, Languages, Cpu, Music2,
   History, PenTool, BarChart2, Microscope, Layers, GraduationCap,
   Eye, ListVideo, WifiOff, AlertTriangle, Info, LayoutGrid,
   Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
+  FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Flame,
 } from 'lucide-react';
-import type { Video, Subject } from './types';
+import type { Video, Subject, LessonNote } from './types';
 import {
   fetchSubjects,
   fetchPublishedVideos,
@@ -24,6 +25,10 @@ import {
   saveDetectedDuration,
   probeVideoDuration,
   parseVideoSource,
+  getLocalNotes,
+  saveLocalNote,
+  updateLocalNote,
+  deleteLocalNote,
 } from './services/videoService';
 
 // ── Subject icon map ──────────────────────────────────────────────────────────
@@ -58,7 +63,7 @@ interface ProgressRecord {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export function App() {
-  const [activeTab, setActiveTab] = useState<'home' | 'library' | 'bookmarks'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'library' | 'notes' | 'bookmarks'>('home');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +78,16 @@ export function App() {
 
   const [continueWatching, setContinueWatching] = useState<ProgressRecord[]>([]);
   const [bookmarkIds, setBookmarkIds] = useState<string[]>([]);
+
+  // Notes state
+  const [notes, setNotes] = useState<LessonNote[]>([]);
+  const [playerTab, setPlayerTab] = useState<'overview' | 'playlist' | 'notes'>('overview');
+  const [newNoteText, setNewNoteText] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
+  const [notesSearchQuery, setNotesSearchQuery] = useState('');
+  const [notesSelectedSubject, setNotesSelectedSubject] = useState<string | null>(null);
+  const [copiedNoteId, setCopiedNoteId] = useState<string | null>(null);
 
   // Player state
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
@@ -272,9 +287,98 @@ export function App() {
   const refreshLocalData = useCallback(() => {
     setContinueWatching(getContinueWatching());
     setBookmarkIds(getLocalBookmarks());
+    setNotes(getLocalNotes());
   }, []);
 
   useEffect(() => { loadData(); refreshLocalData(); }, [loadData, refreshLocalData]);
+
+  // Notes action handlers
+  const handleSeekTo = (targetSeconds: number) => {
+    const safeTime = Math.max(0, Math.min(duration || 600, targetSeconds));
+    if (iframeRef.current?.contentWindow) {
+      sendYTCommand('seekTo', [safeTime, true]);
+    }
+    if (videoRef.current) {
+      videoRef.current.currentTime = safeTime;
+    }
+    setCurrentTime(safeTime);
+    resetControlsTimeout();
+  };
+
+  const handleOpenVideoAtNote = (note: LessonNote) => {
+    const foundVid = videos.find(v => v.id === note.videoId);
+    if (foundVid) {
+      openVideo(foundVid, note.timestamp);
+      setPlayerTab('notes');
+    } else {
+      showToast('Lesson could not be loaded');
+    }
+  };
+
+  const handleAddNote = () => {
+    if (!activeVideo || !newNoteText.trim()) return;
+    saveLocalNote({
+      videoId: activeVideo.id,
+      videoTitle: activeVideo.title,
+      subjectName: activeVideo.subject_name,
+      timestamp: Math.floor(currentTime),
+      text: newNoteText.trim(),
+    });
+    setNewNoteText('');
+    refreshLocalData();
+    showToast(`Note saved at ${formatDuration(Math.floor(currentTime))}`);
+  };
+
+  const handleDeleteNote = (id: string) => {
+    deleteLocalNote(id);
+    refreshLocalData();
+    showToast('Note deleted');
+  };
+
+  const handleUpdateNote = (id: string) => {
+    if (!editingNoteText.trim()) return;
+    updateLocalNote(id, editingNoteText.trim());
+    setEditingNoteId(null);
+    setEditingNoteText('');
+    refreshLocalData();
+    showToast('Note updated');
+  };
+
+  const handleCopyNote = (note: LessonNote) => {
+    const formatted = `[${note.videoTitle} @ ${formatDuration(note.timestamp)}]\n${note.text}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(formatted).then(() => {
+        setCopiedNoteId(note.id);
+        showToast('Note copied to clipboard');
+        setTimeout(() => setCopiedNoteId(null), 2000);
+      }).catch(() => {
+        showToast('Note copied');
+      });
+    }
+  };
+
+  const handleExportAllNotes = () => {
+    if (notes.length === 0) {
+      showToast('No notes to export yet');
+      return;
+    }
+    let content = `electrON Learning - Study Notes & Revision Sheet\nGenerated: ${new Date().toLocaleDateString()}\nTotal Notes: ${notes.length}\n${'='.repeat(60)}\n\n`;
+    notes.forEach((n, idx) => {
+      content += `${idx + 1}. [${n.subjectName || 'General'}] ${n.videoTitle} (Timestamp: ${formatDuration(n.timestamp)})\n`;
+      content += `   Takeaway: ${n.text}\n`;
+      content += `   Recorded: ${new Date(n.createdAt).toLocaleString()}\n\n`;
+    });
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `electrON-Study-Notes-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Study notes exported successfully!');
+  };
 
   // ── Player ────────────────────────────────────────────────────────────────
   const openVideo = (video: Video, startSeconds = 0) => {
@@ -610,7 +714,15 @@ export function App() {
                   <Home size={15} /> Home
                 </button>
                 <button className={`nav-item ${activeTab === 'library' ? 'active' : ''}`} onClick={() => setActiveTab('library')}>
-                  <Library size={15} /> Library
+                  <Compass size={15} /> Courses
+                </button>
+                <button className={`nav-item ${activeTab === 'notes' ? 'active' : ''}`} onClick={() => { refreshLocalData(); setActiveTab('notes'); }}>
+                  <FileText size={15} /> Notes
+                  {notes.length > 0 && (
+                    <span style={{ background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontSize: '0.65rem', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+                      {notes.length}
+                    </span>
+                  )}
                 </button>
                 <button className={`nav-item ${activeTab === 'bookmarks' ? 'active' : ''}`} onClick={() => { refreshLocalData(); setActiveTab('bookmarks'); }}>
                   <Bookmark size={15} /> Saved
@@ -623,7 +735,16 @@ export function App() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <div
+                className="native-streak-badge"
+                onClick={() => showToast('🔥 3-day study streak! Keep up the daily learning momentum!')}
+                title="Daily Study Streak"
+              >
+                <Flame size={14} className="native-streak-fire" />
+                <span>3d Streak</span>
+              </div>
+
               <div className="search-box desktop-search-box">
                 <Search size={15} color="var(--text-muted)" />
                 <input
@@ -692,7 +813,88 @@ export function App() {
 
         {/* ── HOME ── */}
         {!loading && !error && activeTab === 'home' && (
-          <div key="home" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div key="home" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+
+            {/* Native Subject Stories Row (Instagram/Duolingo Style App Experience) */}
+            {subjects.length > 0 && (
+              <div className="stories-section">
+                <div className="stories-heading">
+                  <span>Explore Disciplines</span>
+                  <button
+                    onClick={() => setActiveTab('library')}
+                    style={{ background: 'none', border: 'none', color: 'var(--brand)', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}
+                  >
+                    View All <ChevronRight size={13} />
+                  </button>
+                </div>
+                <div className="stories-scroll-row">
+                  <button
+                    className={`story-item ${!selectedSubjectId ? 'active' : ''}`}
+                    onClick={() => { setSelectedSubjectId(null); setActiveTab('library'); }}
+                  >
+                    <div className="story-ring">
+                      <div className="story-inner">
+                        <LayoutGrid size={20} />
+                      </div>
+                    </div>
+                    <span className="story-name">All Subjects</span>
+                  </button>
+                  {subjects.map(s => {
+                    const isSel = selectedSubjectId === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        className={`story-item ${isSel ? 'active' : ''}`}
+                        onClick={() => {
+                          setSelectedSubjectId(s.id);
+                          setActiveTab('library');
+                        }}
+                      >
+                        <div className="story-ring">
+                          <div className="story-inner">
+                            {getSubjectIcon(s)}
+                          </div>
+                        </div>
+                        <span className="story-name">{s.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Native Continue Learning Hero Card (Mobile-First 1-Tap Resume) */}
+            {continueWatchingVideos.length > 0 && (() => {
+              const topCW = continueWatchingVideos[0];
+              const cwPct = topCW.progress.duration > 0
+                ? Math.min(100, Math.round((topCW.progress.position / topCW.progress.duration) * 100))
+                : 0;
+              return (
+                <div
+                  className="native-continue-card"
+                  onClick={() => openVideo(topCW.video, topCW.progress.position)}
+                >
+                  <div className="continue-card-thumb-wrap">
+                    <VideoThumbnail video={topCW.video} className="continue-card-thumb" />
+                    <div className="continue-card-play-icon">
+                      <Play size={18} fill="#fff" />
+                    </div>
+                  </div>
+                  <div className="continue-card-info">
+                    <div className="continue-card-tag">
+                      <Clock size={12} /> Continue Watching • {cwPct}%
+                    </div>
+                    <div className="continue-card-title">{topCW.video.title}</div>
+                    <div className="continue-progress-bar-wrap">
+                      <div className="continue-progress-bar-fill" style={{ width: `${cwPct}%` }} />
+                    </div>
+                  </div>
+                  <button className="continue-card-action-btn">
+                    <Play size={13} fill="currentColor" /> Resume
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* Welcoming Header (Clean, Authentic, Focused) */}
             <div className="home-welcome-header">
@@ -1175,6 +1377,220 @@ export function App() {
             )}
           </div>
         )}
+
+        {/* ── NOTES TAB (DEDICATED FULL-SCREEN STUDY NOTES) ── */}
+        {!loading && !error && activeTab === 'notes' && (
+          <div key="notes" className="tab-pane-content notes-tab-view">
+            {/* Header Banner */}
+            <div className="notes-header-banner">
+              <div>
+                <h1 className="notes-header-title">
+                  <FileText size={26} color="#60A5FA" />
+                  My Study Notes
+                </h1>
+                <p className="notes-header-sub">
+                  Timestamped revision notes and key exam takeaways across all your lectures.
+                </p>
+              </div>
+
+              <div className="notes-toolbar">
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Search size={15} color="var(--text-muted)" style={{ position: 'absolute', left: 12, pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    className="notes-search-input"
+                    placeholder="Search notes or lessons..."
+                    value={notesSearchQuery}
+                    onChange={e => setNotesSearchQuery(e.target.value)}
+                  />
+                  {notesSearchQuery && (
+                    <button
+                      className="icon-btn"
+                      onClick={() => setNotesSearchQuery('')}
+                      style={{ position: 'absolute', right: 8, padding: 3 }}
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  className="btn-primary"
+                  onClick={handleExportAllNotes}
+                  disabled={notes.length === 0}
+                  style={{ borderRadius: 'var(--radius-full)', padding: '0.6rem 1.15rem', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Download size={15} /> Export (.txt)
+                </button>
+              </div>
+            </div>
+
+            {/* Subject Filters */}
+            {subjects.length > 0 && notes.length > 0 && (
+              <div className="subject-chips-bar">
+                <button
+                  className={`subject-chip ${!notesSelectedSubject ? 'active' : ''}`}
+                  onClick={() => setNotesSelectedSubject(null)}
+                >
+                  <LayoutGrid size={14} />
+                  <span>All Subjects</span>
+                  <span className="chip-badge">{notes.length}</span>
+                </button>
+                {subjects.map(s => {
+                  const subNotes = notes.filter(n => n.subjectName?.toLowerCase() === s.name.toLowerCase());
+                  if (subNotes.length === 0) return null;
+                  return (
+                    <button
+                      key={s.id}
+                      className={`subject-chip ${notesSelectedSubject === s.name ? 'active' : ''}`}
+                      onClick={() => setNotesSelectedSubject(notesSelectedSubject === s.name ? null : s.name)}
+                    >
+                      {getSubjectIcon(s)}
+                      <span>{s.name}</span>
+                      <span className="chip-badge">{subNotes.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Notes List / Grid */}
+            {(() => {
+              const q = notesSearchQuery.toLowerCase().trim();
+              const filteredNotes = notes.filter(n => {
+                const matchesQ = !q ||
+                  n.text.toLowerCase().includes(q) ||
+                  n.videoTitle.toLowerCase().includes(q) ||
+                  (n.subjectName || '').toLowerCase().includes(q);
+                const matchesSubj = !notesSelectedSubject ||
+                  n.subjectName?.toLowerCase() === notesSelectedSubject.toLowerCase();
+                return matchesQ && matchesSubj;
+              });
+
+              if (filteredNotes.length === 0) {
+                return (
+                  <div className="notes-empty-state">
+                    <div className="notes-empty-icon">
+                      <FileText size={32} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {notes.length === 0 ? 'No study notes recorded yet' : 'No notes match your search'}
+                      </h3>
+                      <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', maxWidth: 440, marginTop: 4, lineHeight: 1.5 }}>
+                        {notes.length === 0
+                          ? 'Capture key formulas, exam tips, and concepts while watching any lecture. Click the 📝 Notes tab inside the video player to save notes linked to timestamps!'
+                          : 'Try searching with another keyword or clear your subject filter to see other notes.'}
+                      </p>
+                    </div>
+                    {notes.length === 0 && (
+                      <button
+                        className="btn-primary"
+                        onClick={() => setActiveTab('library')}
+                        style={{ borderRadius: 'var(--radius-full)', marginTop: 8 }}
+                      >
+                        <BookOpen size={15} /> Explore Lessons
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="notes-grid">
+                  {filteredNotes.map(n => {
+                    const isEditing = editingNoteId === n.id;
+                    return (
+                      <div key={n.id} className="note-grid-card">
+                        <div className="note-grid-card-top">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                            {n.subjectName && (
+                              <span className="subject-pill mini">{n.subjectName}</span>
+                            )}
+                            <button
+                              className="note-timestamp-badge"
+                              onClick={() => handleOpenVideoAtNote(n)}
+                              title="Jump to this exact moment in the video"
+                            >
+                              <Play size={10} fill="currentColor" /> {formatDuration(n.timestamp)}
+                            </button>
+                          </div>
+
+                          <div
+                            className="note-grid-card-video"
+                            onClick={() => handleOpenVideoAtNote(n)}
+                            title={`Open "${n.videoTitle}"`}
+                          >
+                            {n.videoTitle}
+                          </div>
+
+                          {isEditing ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                              <textarea
+                                className="note-textarea"
+                                value={editingNoteText}
+                                onChange={e => setEditingNoteText(e.target.value)}
+                                autoFocus
+                              />
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                                <button
+                                  className="icon-btn"
+                                  onClick={() => setEditingNoteId(null)}
+                                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  className="btn-note-save"
+                                  onClick={() => handleUpdateNote(n.id)}
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="note-grid-card-text">{n.text}</div>
+                          )}
+                        </div>
+
+                        <div className="player-note-footer">
+                          <span>{new Date(n.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+
+                          <div className="player-note-btn-group">
+                            <button
+                              className="note-action-icon-btn"
+                              onClick={() => handleCopyNote(n)}
+                              title="Copy note"
+                            >
+                              {copiedNoteId === n.id ? <Check size={14} color="var(--brand)" /> : <Copy size={14} />}
+                            </button>
+                            <button
+                              className="note-action-icon-btn"
+                              onClick={() => {
+                                setEditingNoteId(n.id);
+                                setEditingNoteText(n.text);
+                              }}
+                              title="Edit note"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            <button
+                              className="note-action-icon-btn delete"
+                              onClick={() => handleDeleteNote(n.id)}
+                              title="Delete note"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        )}
       </main>
 
       {/* ── Video Player Modal / Page (Cinema & Touch-Optimized) ── */}
@@ -1529,23 +1945,12 @@ export function App() {
                 );
               })()}
 
-              {/* Lesson Description (Collapsible Card) */}
-              {activeVideo.description && (
-                <div className="player-desc-card" onClick={() => setIsDescExpanded(!isDescExpanded)}>
-                  <div className="player-desc-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: '0.88rem' }}>
-                      <Info size={15} color="var(--brand)" /> About this Lesson
-                    </div>
-                    {isDescExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                  <div className={`player-desc-body ${isDescExpanded ? 'expanded' : 'collapsed'}`}>
-                    {activeVideo.description}
-                  </div>
-                </div>
-              )}
-
-              {/* Up Next in Unit Playlist / Recommended Queue */}
+              {/* In-Player Segmented Control Tabs */}
               {(() => {
+                const currentVideoNotes = notes
+                  .filter(n => n.videoId === activeVideo.id)
+                  .sort((a, b) => a.timestamp - b.timestamp);
+
                 const activeUnitName = activeVideo.unit || activeVideo.chapter;
                 const unitPlaylist = activeUnitName
                   ? videos
@@ -1556,135 +1961,365 @@ export function App() {
                       )
                       .sort((a, b) => (a.unit_order || 1) - (b.unit_order || 1))
                   : [];
-
                 const currentUnitIndex = unitPlaylist.findIndex(v => v.id === activeVideo.id);
 
-                if (unitPlaylist.length > 0) {
-                  return (
-                    <div className="player-up-next-section">
-                      <div
-                        className="player-up-next-heading"
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                return (
+                  <>
+                    <div className="player-tabs-bar">
+                      <button
+                        className={`player-tab-btn ${playerTab === 'overview' ? 'active' : ''}`}
+                        onClick={() => setPlayerTab('overview')}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <ListVideo size={18} color="var(--brand)" />
-                          <span style={{ fontWeight: 800 }}>Playlist: {activeUnitName}</span>
-                        </div>
-                        <span
+                        <Info size={15} /> Overview
+                      </button>
+                      <button
+                        className={`player-tab-btn ${playerTab === 'playlist' ? 'active' : ''}`}
+                        onClick={() => setPlayerTab('playlist')}
+                      >
+                        <ListVideo size={15} /> Playlist
+                        {unitPlaylist.length > 0 && (
+                          <span className="player-tab-badge">{unitPlaylist.length}</span>
+                        )}
+                      </button>
+                      <button
+                        className={`player-tab-btn ${playerTab === 'notes' ? 'active' : ''}`}
+                        onClick={() => setPlayerTab('notes')}
+                      >
+                        <FileText size={15} /> Notes
+                        {currentVideoNotes.length > 0 && (
+                          <span className="player-tab-badge">{currentVideoNotes.length}</span>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* TAB: OVERVIEW */}
+                    {playerTab === 'overview' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        {/* Lesson Description (Collapsible Card) */}
+                        {activeVideo.description && (
+                          <div className="player-desc-card" onClick={() => setIsDescExpanded(!isDescExpanded)}>
+                            <div className="player-desc-header">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: '0.88rem' }}>
+                                <Info size={15} color="var(--brand)" /> About this Lesson
+                              </div>
+                              {isDescExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </div>
+                            <div className={`player-desc-body ${isDescExpanded ? 'expanded' : 'collapsed'}`}>
+                              {activeVideo.description}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Fast note prompt card */}
+                        <div
                           style={{
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            background: 'var(--brand-light)',
-                            color: 'var(--brand)',
-                            border: '1px solid rgba(37, 99, 235, 0.18)',
-                            padding: '0.15rem 0.5rem',
-                            borderRadius: 6,
+                            background: '#FFFFFF',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-lg)',
+                            padding: '1rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            boxShadow: 'var(--shadow-xs)',
                           }}
                         >
-                          Lesson {currentUnitIndex + 1} of {unitPlaylist.length}
-                        </span>
-                      </div>
-
-                      <div className="up-next-cards-list">
-                        {unitPlaylist.map((v, idx) => {
-                          const isCurrent = v.id === activeVideo.id;
-                          return (
-                            <div
-                              key={v.id}
-                              className={`up-next-video-card ${isCurrent ? 'active-playing-lesson' : ''}`}
-                              onClick={() => {
-                                if (!isCurrent) openVideo(v);
-                              }}
-                              style={{
-                                border: isCurrent ? '2px solid var(--brand)' : undefined,
-                                background: isCurrent ? 'var(--brand-light)' : undefined,
-                              }}
-                            >
-                              <div className="up-next-card-thumb-wrap">
-                                <VideoThumbnail video={v} className="up-next-card-thumb" />
-                                <span className="up-next-badge-duration">{formatDuration(v.duration || 600)}</span>
-                                <div className="up-next-play-hover">
-                                  <Play size={16} fill="#fff" />
-                                </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <FileText size={18} color="var(--brand)" />
+                            <div>
+                              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {currentVideoNotes.length > 0
+                                  ? `${currentVideoNotes.length} ${currentVideoNotes.length === 1 ? 'note recorded' : 'notes recorded'}`
+                                  : 'Take notes while watching'}
                               </div>
-                              <div className="up-next-card-content">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span className="up-next-lesson-num">Lesson {v.unit_order || idx + 1}</span>
-                                  {isCurrent && (
-                                    <span
-                                      style={{
-                                        fontSize: '0.65rem',
-                                        fontWeight: 800,
-                                        color: 'var(--brand)',
-                                        textTransform: 'uppercase',
-                                      }}
-                                    >
-                                      ▶ Now Playing
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="up-next-card-title">{v.title}</div>
-                                <div className="up-next-card-meta">
-                                  {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
-                                  <span>{formatViewsCount(v.views)}</span>
-                                </div>
+                              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                Auto-linked to the current video timestamp
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                }
-
-                // Fallback: general Up Next if no unit is set
-                const otherVideos = videos
-                  .filter(v => v.id !== activeVideo.id && (v.subject_id === activeVideo.subject_id || !activeVideo.subject_id))
-                  .concat(videos.filter(v => v.id !== activeVideo.id && v.subject_id !== activeVideo.subject_id));
-
-                if (otherVideos.length === 0) return null;
-
-                return (
-                  <div className="player-up-next-section">
-                    <div className="player-up-next-heading">
-                      <ListVideo size={18} color="var(--brand)" />
-                      <span>Up Next in this Course</span>
-                    </div>
-                    <div className="up-next-cards-list">
-                      {otherVideos.map((v, idx) => (
-                        <div key={v.id} className="up-next-video-card" onClick={() => openVideo(v)}>
-                          <div className="up-next-card-thumb-wrap">
-                            <VideoThumbnail video={v} className="up-next-card-thumb" />
-                            <span className="up-next-badge-duration">{formatDuration(v.duration || 600)}</span>
-                            <div className="up-next-play-hover">
-                              <Play size={16} fill="#fff" />
                             </div>
                           </div>
-                          <div className="up-next-card-content">
-                            <span className="up-next-lesson-num">Lesson {idx + 1}</span>
-                            <div className="up-next-card-title">{v.title}</div>
-                            <div className="up-next-card-meta">
-                              {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
-                              <span>{formatViewsCount(v.views)}</span>
-                            </div>
+                          <button
+                            className="btn-primary"
+                            onClick={() => setPlayerTab('notes')}
+                            style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem', borderRadius: 'var(--radius-full)' }}
+                          >
+                            <Plus size={13} /> {currentVideoNotes.length > 0 ? 'View Notes' : 'Add Note'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB: IN-PLAYER NOTES */}
+                    {playerTab === 'notes' && (
+                      <div className="player-notes-container">
+                        {/* Note Input Box */}
+                        <div className="note-input-card">
+                          <div className="note-input-header">
+                            <button
+                              className="note-timestamp-badge"
+                              onClick={() => handleSeekTo(Math.floor(currentTime))}
+                              title="Current player position"
+                            >
+                              <Play size={10} fill="currentColor" /> {formatDuration(Math.floor(currentTime))}
+                            </button>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                              Auto-tags current moment
+                            </span>
+                          </div>
+
+                          <textarea
+                            className="note-textarea"
+                            placeholder="Type key formulas, exam tips, or revision summaries at this moment..."
+                            value={newNoteText}
+                            onChange={e => setNewNoteText(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                e.preventDefault();
+                                handleAddNote();
+                              }
+                            }}
+                          />
+
+                          <div className="note-input-actions">
+                            <button
+                              className="btn-note-save"
+                              onClick={handleAddNote}
+                              disabled={!newNoteText.trim()}
+                            >
+                              <Plus size={14} /> Save Note
+                            </button>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+
+                        {/* Notes List */}
+                        {currentVideoNotes.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '2.5rem 1rem', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border)' }}>
+                            <FileText size={28} style={{ margin: '0 auto 0.5rem auto', color: 'var(--brand)', opacity: 0.7 }} />
+                            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>No notes for this lesson yet</div>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                              Save formulas and summaries above as you listen to the instructor!
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="player-notes-list">
+                            {currentVideoNotes.map(n => {
+                              const isEditing = editingNoteId === n.id;
+                              return (
+                                <div key={n.id} className="player-note-item">
+                                  <div className="player-note-header">
+                                    <button
+                                      className="note-timestamp-badge"
+                                      onClick={() => handleSeekTo(n.timestamp)}
+                                      title="Seek video to this timestamp"
+                                    >
+                                      <Play size={10} fill="currentColor" /> {formatDuration(n.timestamp)}
+                                    </button>
+
+                                    <div className="player-note-btn-group">
+                                      <button
+                                        className="note-action-icon-btn"
+                                        onClick={() => handleCopyNote(n)}
+                                        title="Copy note text"
+                                      >
+                                        {copiedNoteId === n.id ? <Check size={13} color="var(--brand)" /> : <Copy size={13} />}
+                                      </button>
+                                      <button
+                                        className="note-action-icon-btn"
+                                        onClick={() => {
+                                          setEditingNoteId(n.id);
+                                          setEditingNoteText(n.text);
+                                        }}
+                                        title="Edit note"
+                                      >
+                                        <Edit3 size={13} />
+                                      </button>
+                                      <button
+                                        className="note-action-icon-btn delete"
+                                        onClick={() => handleDeleteNote(n.id)}
+                                        title="Delete note"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {isEditing ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                                      <textarea
+                                        className="note-textarea"
+                                        value={editingNoteText}
+                                        onChange={e => setEditingNoteText(e.target.value)}
+                                        autoFocus
+                                      />
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                                        <button
+                                          className="icon-btn"
+                                          onClick={() => setEditingNoteId(null)}
+                                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          className="btn-note-save"
+                                          onClick={() => handleUpdateNote(n.id)}
+                                        >
+                                          Save
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="player-note-body">{n.text}</div>
+                                  )}
+
+                                  <div className="player-note-footer">
+                                    <span>{new Date(n.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span
+                                      onClick={() => handleSeekTo(n.timestamp)}
+                                      style={{ cursor: 'pointer', color: 'var(--brand)', fontWeight: 700 }}
+                                    >
+                                      Seek to {formatDuration(n.timestamp)} ▶
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* TAB: PLAYLIST */}
+                    {playerTab === 'playlist' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        {unitPlaylist.length > 0 ? (
+                          <div className="player-up-next-section">
+                            <div
+                              className="player-up-next-heading"
+                              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <ListVideo size={18} color="var(--brand)" />
+                                <span style={{ fontWeight: 800 }}>Playlist: {activeUnitName}</span>
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  background: 'var(--brand-light)',
+                                  color: 'var(--brand)',
+                                  border: '1px solid rgba(37, 99, 235, 0.18)',
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: 6,
+                                }}
+                              >
+                                Lesson {currentUnitIndex + 1} of {unitPlaylist.length}
+                              </span>
+                            </div>
+
+                            <div className="up-next-cards-list">
+                              {unitPlaylist.map((v, idx) => {
+                                const isCurrent = v.id === activeVideo.id;
+                                return (
+                                  <div
+                                    key={v.id}
+                                    className={`up-next-video-card ${isCurrent ? 'active-playing-lesson' : ''}`}
+                                    onClick={() => {
+                                      if (!isCurrent) openVideo(v);
+                                    }}
+                                    style={{
+                                      border: isCurrent ? '2px solid var(--brand)' : undefined,
+                                      background: isCurrent ? 'var(--brand-light)' : undefined,
+                                    }}
+                                  >
+                                    <div className="up-next-card-thumb-wrap">
+                                      <VideoThumbnail video={v} className="up-next-card-thumb" />
+                                      <span className="up-next-badge-duration">{formatDuration(v.duration || 600)}</span>
+                                      <div className="up-next-play-hover">
+                                        <Play size={16} fill="#fff" />
+                                      </div>
+                                    </div>
+                                    <div className="up-next-card-content">
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span className="up-next-lesson-num">Lesson {v.unit_order || idx + 1}</span>
+                                        {isCurrent && (
+                                          <span
+                                            style={{
+                                              fontSize: '0.65rem',
+                                              fontWeight: 800,
+                                              color: 'var(--brand)',
+                                              textTransform: 'uppercase',
+                                            }}
+                                          >
+                                            ▶ Now Playing
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="up-next-card-title">{v.title}</div>
+                                      <div className="up-next-card-meta">
+                                        {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
+                                        <span>{formatViewsCount(v.views)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : (
+                          // Fallback Up Next
+                          (() => {
+                            const otherVideos = videos
+                              .filter(v => v.id !== activeVideo.id && (v.subject_id === activeVideo.subject_id || !activeVideo.subject_id))
+                              .concat(videos.filter(v => v.id !== activeVideo.id && v.subject_id !== activeVideo.subject_id));
+
+                            if (otherVideos.length === 0) return null;
+
+                            return (
+                              <div className="player-up-next-section">
+                                <div className="player-up-next-heading">
+                                  <ListVideo size={18} color="var(--brand)" />
+                                  <span>Up Next in this Course</span>
+                                </div>
+                                <div className="up-next-cards-list">
+                                  {otherVideos.map((v, idx) => (
+                                    <div key={v.id} className="up-next-video-card" onClick={() => openVideo(v)}>
+                                      <div className="up-next-card-thumb-wrap">
+                                        <VideoThumbnail video={v} className="up-next-card-thumb" />
+                                        <span className="up-next-badge-duration">{formatDuration(v.duration || 600)}</span>
+                                        <div className="up-next-play-hover">
+                                          <Play size={16} fill="#fff" />
+                                        </div>
+                                      </div>
+                                      <div className="up-next-card-content">
+                                        <span className="up-next-lesson-num">Lesson {idx + 1}</span>
+                                        <div className="up-next-card-title">{v.title}</div>
+                                        <div className="up-next-card-meta">
+                                          {v.subject_name && <span className="subject-pill mini">{v.subject_name}</span>}
+                                          <span>{formatViewsCount(v.views)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()
+                        )}
+                      </div>
+                    )}
+                  </>
                 );
               })()}
             </div>
           </div>
         </div>
       )}
-      {/* ── Mobile Bottom Navigation Bar (App-like mobile experience) ── */}
+
+      {/* ── Mobile Bottom Navigation Bar (4 Native Tabs: Home, Courses, Notes, Saved) ── */}
       <nav className="mobile-bottom-nav">
         <button
           className={`mobile-nav-item ${activeTab === 'home' ? 'active' : ''}`}
           onClick={() => { setActiveTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         >
-          <Home size={21} />
+          <Home size={20} />
           <span>Home</span>
         </button>
 
@@ -1692,8 +2327,23 @@ export function App() {
           className={`mobile-nav-item ${activeTab === 'library' ? 'active' : ''}`}
           onClick={() => { setActiveTab('library'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         >
-          <Library size={21} />
-          <span>Library</span>
+          <Compass size={20} />
+          <span>Courses</span>
+        </button>
+
+        <button
+          className={`mobile-nav-item ${activeTab === 'notes' ? 'active' : ''}`}
+          onClick={() => { refreshLocalData(); setActiveTab('notes'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        >
+          <div style={{ position: 'relative', display: 'inline-flex' }}>
+            <FileText size={20} />
+            {notes.length > 0 && (
+              <span className="mobile-nav-badge">
+                {notes.length}
+              </span>
+            )}
+          </div>
+          <span>Notes</span>
         </button>
 
         <button
@@ -1701,7 +2351,7 @@ export function App() {
           onClick={() => { refreshLocalData(); setActiveTab('bookmarks'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         >
           <div style={{ position: 'relative', display: 'inline-flex' }}>
-            <Bookmark size={21} />
+            <Bookmark size={20} />
             {bookmarkIds.length > 0 && (
               <span className="mobile-nav-badge">
                 {bookmarkIds.length}

@@ -10,13 +10,14 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Video, Subject } from '../types';
+import type { Video, Subject, LessonNote } from '../types';
 
 // ─── Local Storage Keys ──────────────────────────────────────────────────────
 const BOOKMARKS_KEY = 'electrON_bookmarks';
 const PROGRESS_KEY = 'electrON_progress';
 const LOCAL_VIEWS_MAP_KEY = 'electrON_local_views_map';
 const DURATIONS_KEY = 'electrON_video_durations';
+const NOTES_KEY = 'electrON_lesson_notes';
 
 export function getCachedDurations(): Record<string, number> {
   try {
@@ -541,5 +542,60 @@ export function parseVideoSource(url: string): VideoSourceInfo {
     originalUrl: cleanUrl,
     label: cleanUrl.startsWith('/videos/') ? 'Local File' : 'Direct Link',
   };
+}
+
+// ─── Lesson Notes Management ────────────────────────────────────────────────
+export function getLocalNotes(): LessonNote[] {
+  try {
+    const raw = localStorage.getItem(NOTES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getVideoNotes(videoId: string): LessonNote[] {
+  if (!videoId) return [];
+  const notes = getLocalNotes();
+  return notes
+    .filter(n => n.videoId === videoId)
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
+export function saveLocalNote(
+  noteData: Omit<LessonNote, 'id' | 'createdAt'>
+): LessonNote {
+  const notes = getLocalNotes();
+  const newNote: LessonNote = {
+    ...noteData,
+    id: 'note_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    createdAt: new Date().toISOString(),
+  };
+
+  const updated = [newNote, ...notes];
+  try {
+    localStorage.setItem(NOTES_KEY, JSON.stringify(updated));
+  } catch (err) {
+    console.warn('Failed to save note to localStorage', err);
+  }
+  return newNote;
+}
+
+export function updateLocalNote(id: string, text: string): void {
+  const notes = getLocalNotes();
+  const updated = notes.map(n =>
+    n.id === id ? { ...n, text: text.trim(), updatedAt: new Date().toISOString() } : n
+  );
+  try {
+    localStorage.setItem(NOTES_KEY, JSON.stringify(updated));
+  } catch {}
+}
+
+export function deleteLocalNote(id: string): void {
+  const notes = getLocalNotes();
+  const filtered = notes.filter(n => n.id !== id);
+  try {
+    localStorage.setItem(NOTES_KEY, JSON.stringify(filtered));
+  } catch {}
 }
 
