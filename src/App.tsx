@@ -7,7 +7,7 @@ import {
   History, PenTool, BarChart2, Microscope, Layers, GraduationCap,
   Eye, ListVideo, WifiOff, AlertTriangle, Info, LayoutGrid,
   Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
-  FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Flame,
+  FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Flame, Paperclip,
 } from 'lucide-react';
 import type { Video, Subject, LessonNote } from './types';
 import {
@@ -1941,6 +1941,26 @@ export function App() {
                         <span>Drive</span>
                       </a>
                     )}
+
+                    {(activeVideo.material_url || (activeVideo.materials && activeVideo.materials.length > 0)) && (
+                      <a
+                        href={activeVideo.material_url || activeVideo.materials?.[0]?.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="player-action-item"
+                        title={`Study Material: ${activeVideo.material_title || 'Download Lecture Notes'}`}
+                        style={{
+                          textDecoration: 'none',
+                          background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                          color: 'var(--brand)',
+                          border: '1.5px solid rgba(37, 99, 235, 0.25)',
+                          fontWeight: 700,
+                        }}
+                      >
+                        <Paperclip size={17} color="var(--brand)" />
+                        <span>{activeVideo.material_title || 'Material'}</span>
+                      </a>
+                    )}
                   </div>
                 );
               })()}
@@ -2044,6 +2064,70 @@ export function App() {
                             <Plus size={13} /> {currentVideoNotes.length > 0 ? 'View Notes' : 'Add Note'}
                           </button>
                         </div>
+
+                        {/* Attached Study Materials / PDF Notes card */}
+                        {(activeVideo.material_url || (activeVideo.materials && activeVideo.materials.length > 0)) && (
+                          <div
+                            style={{
+                              background: '#FFFFFF',
+                              border: '1px solid rgba(37, 99, 235, 0.22)',
+                              borderRadius: 'var(--radius-lg)',
+                              padding: '1.1rem',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              boxShadow: 'var(--shadow-sm)',
+                              gap: '1rem',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  width: 44,
+                                  height: 44,
+                                  borderRadius: 12,
+                                  background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                                  color: 'var(--brand)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                  boxShadow: 'inset 0 1px 2px rgba(37, 99, 235, 0.1)',
+                                }}
+                              >
+                                <Paperclip size={22} />
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {activeVideo.material_title || activeVideo.materials?.[0]?.title || 'Study Material & Notes'}
+                                </div>
+                                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                                  Instructor attached resource • PDF / Drive / Link
+                                </div>
+                              </div>
+                            </div>
+
+                            <a
+                              href={activeVideo.material_url || activeVideo.materials?.[0]?.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn-primary"
+                              style={{
+                                textDecoration: 'none',
+                                padding: '0.55rem 1.15rem',
+                                fontSize: '0.82rem',
+                                borderRadius: 'var(--radius-full)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <ExternalLink size={14} /> Open Material
+                            </a>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -2545,6 +2629,25 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
               }}
             >
               <ListVideo size={11} color="var(--brand)" /> {video.unit || video.chapter}
+            </span>
+          )}
+          {(video.material_url || (video.materials && video.materials.length > 0)) && (
+            <span
+              style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                color: 'var(--brand)',
+                background: 'var(--brand-light)',
+                border: '1px solid rgba(37, 99, 235, 0.2)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: 6,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+              title="Includes study material"
+            >
+              <Paperclip size={11} /> Material
             </span>
           )}
         </div>
