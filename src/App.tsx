@@ -454,6 +454,41 @@ export function App() {
     }
   };
 
+  // Global Keyboard Shortcuts when cinema player is active
+  useEffect(() => {
+    if (!activeVideo) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeVideo();
+      } else if (e.key === ' ' || e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        handleTogglePlay();
+      } else if (e.key === 'ArrowLeft' || e.key === 'j' || e.key === 'J') {
+        e.preventDefault();
+        handleSkip(-10);
+      } else if (e.key === 'ArrowRight' || e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        handleSkip(10);
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        handleToggleMute();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        handleFullscreen();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeVideo, isPlaying, isMuted, currentTime, duration]);
+
   const handleToggleBookmark = (videoId: string) => {
     const isNow = toggleLocalBookmark(videoId);
     if (activeVideo?.id === videoId) setBookmarked(isNow);
@@ -659,6 +694,44 @@ export function App() {
         {!loading && !error && activeTab === 'home' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
+            {/* Welcoming Header (Clean, Authentic, Focused) */}
+            <div className="home-welcome-header">
+              <div className="home-welcome-content">
+                <div className="home-welcome-badge">
+                  <GraduationCap size={14} />
+                  <span>Interactive Learning Portal</span>
+                </div>
+                <h1 className="home-welcome-title">Master Your Engineering Concepts</h1>
+                <p className="home-welcome-sub">
+                  Structured video lectures, organized unit playlists, and progress tracking designed for focused study.
+                </p>
+                <div className="home-welcome-stats">
+                  <div className="home-stat-chip">
+                    <Layers size={14} color="var(--brand)" />
+                    <span><strong>{subjects.length}</strong> Disciplines</span>
+                  </div>
+                  <div className="home-stat-chip">
+                    <ListVideo size={14} color="var(--brand)" />
+                    <span><strong>{videos.length}</strong> Lessons</span>
+                  </div>
+                  {continueWatchingVideos.length > 0 && (
+                    <div
+                      className="home-stat-chip in-progress"
+                      onClick={() => {
+                        const first = continueWatchingVideos[0];
+                        if (first) openVideo(first.video, first.progress.position);
+                      }}
+                      title="Continue watching where you left off"
+                    >
+                      <Clock size={14} color="var(--success)" />
+                      <span>Resume: <strong>{continueWatchingVideos[0].video.title.slice(0, 26)}...</strong></span>
+                      <ChevronRight size={13} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Subject Filter Bar */}
             {subjects.length > 0 && (
               <div className="subject-chips-bar">
@@ -709,18 +782,48 @@ export function App() {
               <section>
                 <div className="section-header">
                   <h2 className="section-title"><Layers size={18} color="var(--brand)" /> Browse Subjects</h2>
+                  <button className="section-link" onClick={() => { setSelectedSubjectId(null); setActiveTab('library'); }}>
+                    All Lessons <ChevronRight size={14} />
+                  </button>
                 </div>
                 <div className="subjects-grid">
-                  {subjects.map(s => (
-                    <div key={s.id} className="subject-card"
-                      onClick={() => { setSelectedSubjectId(s.id); setActiveTab('library'); }}>
-                      <div className="subject-icon" style={{ background: s.color || 'var(--brand)' }}>
-                        {getSubjectIcon(s)}
+                  {subjects.map(s => {
+                    const count = videos.filter(v => {
+                      const vidSubjId = (v.subject_id ?? '').toLowerCase().trim();
+                      const vidSubjName = (v.subject_name ?? '').toLowerCase().trim();
+                      const targetId = s.id.toLowerCase().trim();
+                      const targetName = (s.name ?? '').toLowerCase().trim();
+                      return (
+                        (targetId && vidSubjId === targetId) ||
+                        (targetName && vidSubjName === targetName) ||
+                        (targetName && vidSubjId === targetName) ||
+                        (targetId && vidSubjName === targetId) ||
+                        (targetName && vidSubjName.includes(targetName)) ||
+                        (vidSubjName && targetName.includes(vidSubjName))
+                      );
+                    }).length;
+
+                    return (
+                      <div
+                        key={s.id}
+                        className="subject-card"
+                        onClick={() => { setSelectedSubjectId(s.id); setActiveTab('library'); }}
+                      >
+                        <div className="subject-card-top">
+                          <div className="subject-icon" style={{ background: s.color || 'var(--brand)' }}>
+                            {getSubjectIcon(s)}
+                          </div>
+                          <span className="subject-card-count">{count} {count === 1 ? 'lesson' : 'lessons'}</span>
+                        </div>
+                        <div className="subject-name">{s.name}</div>
+                        {s.description && <div className="subject-desc">{s.description}</div>}
+                        <div className="subject-card-footer">
+                          <span>Explore lectures</span>
+                          <ChevronRight size={13} />
+                        </div>
                       </div>
-                      <div className="subject-name">{s.name}</div>
-                      <div className="subject-desc">{s.description}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -1044,10 +1147,17 @@ export function App() {
           <div>
             <h2 className="section-title" style={{ marginBottom: '1.5rem' }}><Bookmark size={18} color="var(--brand)" /> Saved Lessons</h2>
             {bookmarkedVideos.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '5rem', color: 'var(--text-muted)' }}>
+              <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-muted)' }}>
                 <Bookmark size={48} style={{ marginBottom: '1rem', opacity: 0.4 }} />
-                <p style={{ fontWeight: 600 }}>No saved lessons yet</p>
-                <p style={{ fontSize: '0.85rem', marginTop: '0.4rem' }}>Tap the bookmark icon on any video to save it here.</p>
+                <p style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>No saved lessons yet</p>
+                <p style={{ fontSize: '0.85rem', marginTop: '0.4rem' }}>Tap the bookmark icon on any video to save it here for fast revision.</p>
+                <button
+                  className="btn-primary"
+                  onClick={() => setActiveTab('library')}
+                  style={{ marginTop: '1.25rem', borderRadius: 50 }}
+                >
+                  <BookOpen size={15} /> Explore Lessons
+                </button>
               </div>
             ) : (
               <div className="video-grid">
