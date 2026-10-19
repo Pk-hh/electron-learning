@@ -692,7 +692,7 @@ export function App() {
 
         {/* ── HOME ── */}
         {!loading && !error && activeTab === 'home' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div key="home" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
             {/* Welcoming Header (Clean, Authentic, Focused) */}
             <div className="home-welcome-header">
@@ -871,7 +871,7 @@ export function App() {
 
         {/* ── LIBRARY ── */}
         {!loading && !error && activeTab === 'library' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div key="library" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div className="library-header-row">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <h2 className="section-title"><ListVideo size={20} color="var(--brand)" /> Video Library</h2>
@@ -879,7 +879,7 @@ export function App() {
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 {/* View Mode Switch */}
-                <div style={{ display: 'inline-flex', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 50, padding: 2 }}>
+                <div style={{ display: 'inline-flex', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 50, padding: 3, gap: 2 }}>
                   <button
                     type="button"
                     onClick={() => setLibraryViewMode('playlists')}
@@ -888,14 +888,15 @@ export function App() {
                       color: libraryViewMode === 'playlists' ? '#fff' : 'var(--text-muted)',
                       border: 'none',
                       borderRadius: 50,
-                      padding: '0.3rem 0.8rem',
+                      padding: '0.35rem 0.85rem',
                       fontSize: '0.78rem',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 4,
-                      transition: 'all 0.2s ease',
+                      transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+                      boxShadow: libraryViewMode === 'playlists' ? '0 1px 4px rgba(37,99,235,0.25)' : 'none',
                     }}
                   >
                     <ListVideo size={13} /> Unit Playlists
@@ -908,14 +909,15 @@ export function App() {
                       color: libraryViewMode === 'lessons' ? '#fff' : 'var(--text-muted)',
                       border: 'none',
                       borderRadius: 50,
-                      padding: '0.3rem 0.8rem',
+                      padding: '0.35rem 0.85rem',
                       fontSize: '0.78rem',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 4,
-                      transition: 'all 0.2s ease',
+                      transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+                      boxShadow: libraryViewMode === 'lessons' ? '0 1px 4px rgba(37,99,235,0.25)' : 'none',
                     }}
                   >
                     <Layers size={13} /> All Lessons
@@ -989,129 +991,27 @@ export function App() {
                   Reset all filters
                 </button>
               </div>
-            ) : libraryViewMode === 'playlists' ? (
-              (() => {
-                const unitGroups = new Map<string, Video[]>();
-                const unassigned: Video[] = [];
+            ) : (
+              <div key={libraryViewMode} className="tab-subview-content">
+                {libraryViewMode === 'playlists' ? (
+                  (() => {
+                    const unitGroups = new Map<string, Video[]>();
+                    const unassigned: Video[] = [];
 
-                filteredVideos.forEach(v => {
-                  const u = v.unit || v.chapter;
-                  if (u) {
-                    if (!unitGroups.has(u)) unitGroups.set(u, []);
-                    unitGroups.get(u)!.push(v);
-                  } else {
-                    unassigned.push(v);
-                  }
-                });
+                    filteredVideos.forEach(v => {
+                      const u = v.unit || v.chapter;
+                      if (u) {
+                        if (!unitGroups.has(u)) unitGroups.set(u, []);
+                        unitGroups.get(u)!.push(v);
+                      } else {
+                        unassigned.push(v);
+                      }
+                    });
 
-                if (unitGroups.size === 0) {
-                  return (
-                    <div className="video-grid">
-                      {filteredVideos.map(v => (
-                        <VideoCard
-                          key={v.id}
-                          video={v}
-                          onPlay={() => openVideo(v)}
-                          onBookmark={() => handleToggleBookmark(v.id)}
-                          isBookmarked={bookmarkIds.includes(v.id)}
-                        />
-                      ))}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                    {Array.from(unitGroups.entries()).map(([unitName, unitVids]) => {
-                      const sortedVids = [...unitVids].sort((a, b) => (a.unit_order || 1) - (b.unit_order || 1));
-                      const totalDurationSec = sortedVids.reduce((acc, v) => acc + (v.duration || 600), 0);
-
+                    if (unitGroups.size === 0) {
                       return (
-                        <div
-                          key={unitName}
-                          style={{
-                            background: 'var(--bg-surface)',
-                            border: '1.5px solid var(--border)',
-                            borderRadius: 16,
-                            overflow: 'hidden',
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
-                          }}
-                        >
-                          <div
-                            style={{
-                              padding: '1.15rem 1.5rem',
-                              borderBottom: '1px solid var(--border)',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              flexWrap: 'wrap',
-                              gap: '1rem',
-                              background: 'linear-gradient(to right, rgba(37,99,235,0.06), transparent)',
-                            }}
-                          >
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 4 }}>
-                                <span
-                                  style={{
-                                    fontSize: '0.72rem',
-                                    fontWeight: 800,
-                                    background: 'var(--brand-light)',
-                                    color: 'var(--brand)',
-                                    border: '1px solid rgba(37, 99, 235, 0.18)',
-                                    padding: '0.2rem 0.6rem',
-                                    borderRadius: 6,
-                                  }}
-                                >
-                                  Unit Playlist
-                                </span>
-                                <h3 style={{ margin: 0, fontWeight: 900, fontSize: '1.18rem', color: 'var(--text-primary)' }}>
-                                  {unitName}
-                                </h3>
-                              </div>
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                {sortedVids.length} {sortedVids.length === 1 ? 'lesson' : 'lessons'} • {formatDuration(totalDurationSec)} total watch time
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              className="btn-primary"
-                              onClick={() => openVideo(sortedVids[0])}
-                              style={{
-                                borderRadius: 50,
-                                padding: '0.55rem 1.25rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                fontWeight: 700,
-                              }}
-                            >
-                              <Play size={14} fill="#fff" /> Play Unit Playlist
-                            </button>
-                          </div>
-
-                          <div className="video-grid" style={{ padding: '1.25rem' }}>
-                            {sortedVids.map(v => (
-                              <VideoCard
-                                key={v.id}
-                                video={v}
-                                onPlay={() => openVideo(v)}
-                                onBookmark={() => handleToggleBookmark(v.id)}
-                                isBookmarked={bookmarkIds.includes(v.id)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {unassigned.length > 0 && (
-                      <div>
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.85rem', color: 'var(--text-secondary)' }}>
-                          General Lessons ({unassigned.length})
-                        </h3>
                         <div className="video-grid">
-                          {unassigned.map(v => (
+                          {filteredVideos.map(v => (
                             <VideoCard
                               key={v.id}
                               video={v}
@@ -1121,22 +1021,128 @@ export function App() {
                             />
                           ))}
                         </div>
+                      );
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                        {Array.from(unitGroups.entries()).map(([unitName, unitVids]) => {
+                          const sortedVids = [...unitVids].sort((a, b) => (a.unit_order || 1) - (b.unit_order || 1));
+                          const totalDurationSec = sortedVids.reduce((acc, v) => acc + (v.duration || 600), 0);
+
+                          return (
+                            <div
+                              key={unitName}
+                              style={{
+                                background: 'var(--bg-surface)',
+                                border: '1.5px solid var(--border)',
+                                borderRadius: 16,
+                                overflow: 'hidden',
+                                boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  padding: '1.15rem 1.5rem',
+                                  borderBottom: '1px solid var(--border)',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: '1rem',
+                                  background: 'linear-gradient(to right, rgba(37,99,235,0.06), transparent)',
+                                }}
+                              >
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 4 }}>
+                                    <span
+                                      style={{
+                                        fontSize: '0.72rem',
+                                        fontWeight: 800,
+                                        background: 'var(--brand-light)',
+                                        color: 'var(--brand)',
+                                        border: '1px solid rgba(37, 99, 235, 0.18)',
+                                        padding: '0.2rem 0.6rem',
+                                        borderRadius: 6,
+                                      }}
+                                    >
+                                      Unit Playlist
+                                    </span>
+                                    <h3 style={{ margin: 0, fontWeight: 900, fontSize: '1.18rem', color: 'var(--text-primary)' }}>
+                                      {unitName}
+                                    </h3>
+                                  </div>
+                                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                    {sortedVids.length} {sortedVids.length === 1 ? 'lesson' : 'lessons'} • {formatDuration(totalDurationSec)} total watch time
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  onClick={() => openVideo(sortedVids[0])}
+                                  style={{
+                                    borderRadius: 50,
+                                    padding: '0.55rem 1.25rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  <Play size={14} fill="#fff" /> Play Unit Playlist
+                                </button>
+                              </div>
+
+                              <div className="video-grid" style={{ padding: '1.25rem' }}>
+                                {sortedVids.map(v => (
+                                  <VideoCard
+                                    key={v.id}
+                                    video={v}
+                                    onPlay={() => openVideo(v)}
+                                    onBookmark={() => handleToggleBookmark(v.id)}
+                                    isBookmarked={bookmarkIds.includes(v.id)}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {unassigned.length > 0 && (
+                          <div>
+                            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.85rem', color: 'var(--text-secondary)' }}>
+                              General Lessons ({unassigned.length})
+                            </h3>
+                            <div className="video-grid">
+                              {unassigned.map(v => (
+                                <VideoCard
+                                  key={v.id}
+                                  video={v}
+                                  onPlay={() => openVideo(v)}
+                                  onBookmark={() => handleToggleBookmark(v.id)}
+                                  isBookmarked={bookmarkIds.includes(v.id)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    );
+                  })()
+                ) : (
+                  <div className="video-grid">
+                    {filteredVideos.map(v => (
+                      <VideoCard
+                        key={v.id}
+                        video={v}
+                        onPlay={() => openVideo(v)}
+                        onBookmark={() => handleToggleBookmark(v.id)}
+                        isBookmarked={bookmarkIds.includes(v.id)}
+                      />
+                    ))}
                   </div>
-                );
-              })()
-            ) : (
-              <div className="video-grid">
-                {filteredVideos.map(v => (
-                  <VideoCard
-                    key={v.id}
-                    video={v}
-                    onPlay={() => openVideo(v)}
-                    onBookmark={() => handleToggleBookmark(v.id)}
-                    isBookmarked={bookmarkIds.includes(v.id)}
-                  />
-                ))}
+                )}
               </div>
             )}
           </div>
@@ -1144,7 +1150,7 @@ export function App() {
 
         {/* ── BOOKMARKS ── */}
         {!loading && !error && activeTab === 'bookmarks' && (
-          <div>
+          <div key="bookmarks" className="tab-pane-content">
             <h2 className="section-title" style={{ marginBottom: '1.5rem' }}><Bookmark size={18} color="var(--brand)" /> Saved Lessons</h2>
             {bookmarkedVideos.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-muted)' }}>

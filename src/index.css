@@ -101,6 +101,44 @@ html, body {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   FLUID TAB TRANSITIONS & SMOOTH ENTRANCE ANIMATIONS
+   ══════════════════════════════════════════════════════════════════════════════ */
+@keyframes tabFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tab-pane-content {
+  animation: tabFadeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes subviewFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-subview-content {
+  animation: subviewFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    TOP NAVIGATION BAR
    ══════════════════════════════════════════════════════════════════════════════ */
 .navbar {
@@ -1507,18 +1545,48 @@ html, body {
   cursor: pointer;
   font-family: inherit;
   gap: 4px;
-  padding: 0.3rem 0;
+  padding: 0.35rem 0;
   border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
+  transition: color 0.2s ease, transform 0.15s ease;
   user-select: none;
+  position: relative;
+}
+
+.mobile-nav-item svg {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.2s ease;
 }
 
 .mobile-nav-item.active {
   color: var(--brand);
+  font-weight: 700;
 }
 
 .mobile-nav-item.active svg {
   stroke: var(--brand);
+  transform: translateY(-2px) scale(1.1);
+}
+
+.mobile-nav-item::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 28px;
+  height: 3px;
+  background: var(--brand);
+  border-radius: 9999px;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  opacity: 0;
+}
+
+.mobile-nav-item.active::before {
+  transform: translateX(-50%) scaleX(1);
+  opacity: 1;
+}
+
+.mobile-nav-item:active {
+  transform: scale(0.94);
 }
 
 .mobile-nav-badge {
