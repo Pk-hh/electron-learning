@@ -7,7 +7,7 @@ import {
   History, PenTool, BarChart2, Microscope, Layers, GraduationCap,
   Eye, ListVideo, WifiOff, AlertTriangle, Info, LayoutGrid,
   Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
-  FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Flame, Paperclip,
+  FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Paperclip,
 } from 'lucide-react';
 import type { Video, Subject, LessonNote } from './types';
 import {
@@ -740,15 +740,6 @@ export function App() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <div
-                className="native-streak-badge"
-                onClick={() => showToast('🔥 3-day study streak! Keep up the daily learning momentum!')}
-                title="Daily Study Streak"
-              >
-                <Flame size={14} className="native-streak-fire" />
-                <span>3d Streak</span>
-              </div>
-
               <div className="search-box desktop-search-box">
                 <Search size={15} color="var(--text-muted)" />
                 <input
@@ -903,10 +894,6 @@ export function App() {
             {/* Welcoming Header (Clean, Authentic, Focused) */}
             <div className="home-welcome-header">
               <div className="home-welcome-content">
-                <div className="home-welcome-badge">
-                  <GraduationCap size={14} />
-                  <span>Interactive Learning Portal</span>
-                </div>
                 <h1 className="home-welcome-title">Master Your Engineering Concepts</h1>
                 <p className="home-welcome-sub">
                   Structured video lectures, organized unit playlists, and progress tracking designed for focused study.
@@ -920,20 +907,6 @@ export function App() {
                     <ListVideo size={14} color="var(--brand)" />
                     <span><strong>{videos.length}</strong> Lessons</span>
                   </div>
-                  {continueWatchingVideos.length > 0 && (
-                    <div
-                      className="home-stat-chip in-progress"
-                      onClick={() => {
-                        const first = continueWatchingVideos[0];
-                        if (first) openVideo(first.video, first.progress.position);
-                      }}
-                      title="Continue watching where you left off"
-                    >
-                      <Clock size={14} color="var(--success)" />
-                      <span>Resume: <strong>{continueWatchingVideos[0].video.title.slice(0, 26)}...</strong></span>
-                      <ChevronRight size={13} />
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -963,24 +936,6 @@ export function App() {
                   );
                 })}
               </div>
-            )}
-
-            {/* Continue Watching */}
-            {continueWatchingVideos.length > 0 && (
-              <section>
-                <div className="section-header">
-                  <h2 className="section-title"><Clock size={18} color="var(--brand)" /> Continue Watching</h2>
-                </div>
-                <div className="video-grid">
-                  {continueWatchingVideos.map(({ progress, video }) => (
-                    <VideoCard key={video.id} video={video}
-                      onPlay={() => openVideo(video, progress.position)}
-                      onBookmark={() => handleToggleBookmark(video.id)}
-                      isBookmarked={bookmarkIds.includes(video.id)}
-                      progressPct={Math.min(100, (progress.position / progress.duration) * 100)} />
-                  ))}
-                </div>
-              </section>
             )}
 
             {/* Browse Subjects */}
