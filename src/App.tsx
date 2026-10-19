@@ -141,6 +141,15 @@ export function App() {
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [fallbackToIframe, setFallbackToIframe] = useState<boolean>(false);
+  const [currentClockMs, setCurrentClockMs] = useState<number>(Date.now());
+
+  // 1-second clock tick to drive live stream countdown and auto-start precisely when time arrives
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentClockMs(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -441,17 +450,24 @@ export function App() {
       }
     });
 
-    setTimeout(() => {
-      if (videoRef.current) {
-        if (resumeAt > 0) videoRef.current.currentTime = resumeAt;
-        videoRef.current.play()
-          .then(() => setIsPlaying(true))
-          .catch(() => {
-            // Autoplay rejected or waiting for user gesture
-            setIsPlaying(false);
-          });
-      }
-    }, 120);
+    // Only autoplay if it is NOT an upcoming premiere waiting for countdown
+    const isLive = Boolean(video.is_live);
+    const schedMs = video.scheduled_at ? new Date(video.scheduled_at).getTime() : 0;
+    const isUpcoming = isLive && schedMs > Date.now();
+
+    if (!isUpcoming) {
+      setTimeout(() => {
+        if (videoRef.current) {
+          if (resumeAt > 0) videoRef.current.currentTime = resumeAt;
+          videoRef.current.play()
+            .then(() => setIsPlaying(true))
+            .catch(() => {
+              // Autoplay rejected or waiting for user gesture
+              setIsPlaying(false);
+            });
+        }
+      }, 120);
+    }
   };
 
   // Listen for YouTube IFrame postMessage events to dynamically capture exact duration and state
@@ -1730,7 +1746,7 @@ export function App() {
               // Live Stream / Premiere checks
               const isLive = Boolean(activeVideo.is_live);
               const schedTime = activeVideo.scheduled_at ? new Date(activeVideo.scheduled_at).getTime() : 0;
-              const isUpcomingPremiere = isLive && schedTime > Date.now();
+              const isUpcomingPremiere = isLive && schedTime > currentClockMs;
 
               // Fallback streaming renderers if not an offline/direct MP4
               const renderYouTubeStream = !videoSrc && sourceInfo.type === 'youtube';
@@ -1741,10 +1757,13 @@ export function App() {
                   ref={playerContainerRef}
                   className={`player-video-wrapper ${showControls ? 'controls-visible' : 'controls-hidden'}`}
                   onClick={() => {
+                    if (isUpcomingPremiere) return;
                     if (showControls) setShowControls(false);
                     else resetControlsTimeout();
                   }}
-                  onMouseMove={resetControlsTimeout}
+                  onMouseMove={() => {
+                    if (!isUpcomingPremiere) resetControlsTimeout();
+                  }}
                 >
                   {isUpcomingPremiere ? (
                     <div className="live-premiere-countdown-screen">
@@ -1760,25 +1779,25 @@ export function App() {
                         <div className="live-countdown-grid">
                           <div className="live-countdown-item">
                             <span className="live-countdown-num">
-                              {Math.max(0, Math.floor((schedTime - Date.now()) / (1000 * 60 * 60 * 24)))}
+                              {Math.max(0, Math.floor((schedTime - currentClockMs) / (1000 * 60 * 60 * 24)))}
                             </span>
                             <span className="live-countdown-label">Days</span>
                           </div>
                           <div className="live-countdown-item">
                             <span className="live-countdown-num">
-                              {Math.max(0, Math.floor(((schedTime - Date.now()) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)))}
+                              {Math.max(0, Math.floor(((schedTime - currentClockMs) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)))}
                             </span>
                             <span className="live-countdown-label">Hours</span>
                           </div>
                           <div className="live-countdown-item">
                             <span className="live-countdown-num">
-                              {Math.max(0, Math.floor(((schedTime - Date.now()) % (1000 * 60 * 60)) / (1000 * 60)))}
+                              {Math.max(0, Math.floor(((schedTime - currentClockMs) % (1000 * 60 * 60)) / (1000 * 60)))}
                             </span>
                             <span className="live-countdown-label">Mins</span>
                           </div>
                           <div className="live-countdown-item">
                             <span className="live-countdown-num">
-                              {Math.max(0, Math.floor(((schedTime - Date.now()) % (1000 * 60)) / 1000))}
+                              {Math.max(0, Math.floor(((schedTime - currentClockMs) % (1000 * 60)) / 1000))}
                             </span>
                             <span className="live-countdown-label">Secs</span>
                           </div>
@@ -1849,24 +1868,27 @@ export function App() {
                     </div>
                   )}
 
-                  {/* Top Controls Overlay */}
-                  <div className="player-overlay-top" onClick={e => e.stopPropagation()}>
-                    <button className="player-overlay-btn" onClick={closeVideo} title="Back">
-                      <ChevronLeft size={22} />
-                    </button>
-                    <div className="player-overlay-title">{activeVideo.title}</div>
-                    <button
-                      className="player-overlay-btn"
-                      onClick={() => handleToggleBookmark(activeVideo.id)}
-                      title="Save lesson"
-                    >
-                      <Bookmark
-                        size={18}
-                        fill={bookmarked ? 'var(--brand)' : 'none'}
-                        color={bookmarked ? 'var(--brand)' : '#fff'}
-                      />
-                    </button>
-                  </div>
+                  {/* Player controls overlays - only rendered when video is actually playing, NOT during premiere countdown */}
+                  {!isUpcomingPremiere && (
+                    <>
+                      {/* Top Controls Overlay */}
+                      <div className="player-overlay-top" onClick={e => e.stopPropagation()}>
+                        <button className="player-overlay-btn" onClick={closeVideo} title="Back">
+                          <ChevronLeft size={22} />
+                        </button>
+                        <div className="player-overlay-title">{activeVideo.title}</div>
+                        <button
+                          className="player-overlay-btn"
+                          onClick={() => handleToggleBookmark(activeVideo.id)}
+                          title="Save lesson"
+                        >
+                          <Bookmark
+                            size={18}
+                            fill={bookmarked ? 'var(--brand)' : 'none'}
+                            color={bookmarked ? 'var(--brand)' : '#fff'}
+                          />
+                        </button>
+                      </div>
 
                   {/* Center Controls Overlay (10s Rewind, Big Play/Pause, 10s Forward) */}
                   <div className="player-overlay-center" onClick={e => e.stopPropagation()}>
@@ -1955,6 +1977,8 @@ export function App() {
                       </div>
                     </div>
                   </div>
+                    </>
+                  )}
                 </div>
               );
             })()}
