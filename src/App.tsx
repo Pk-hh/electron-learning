@@ -611,6 +611,10 @@ export function App() {
   const continueWatchingVideos = continueWatching
     .map(p => ({ progress: p, video: videos.find(v => v.id === p.videoId) }))
     .filter((x): x is { progress: ProgressRecord; video: Video } => x.video !== undefined);
+  const progressMap = continueWatching.reduce<Record<string, ProgressRecord>>((acc, p) => {
+    acc[p.videoId] = p;
+    return acc;
+  }, {});
   const filteredVideos = videos.filter(v => {
     // 1. Text search
     const q = searchQuery.toLowerCase().trim();
@@ -1071,284 +1075,458 @@ export function App() {
           </div>
         )}
 
-        {/* ── LIBRARY ── */}
-        {!loading && !error && activeTab === 'library' && (
-          <div key="library" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div className="library-header-row">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <h2 className="section-title"><ListVideo size={20} color="var(--brand)" /> Video Library</h2>
-                <span className="library-count-pill">{filteredVideos.length} {filteredVideos.length === 1 ? 'lesson' : 'lessons'}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                {/* View Mode Switch */}
-                <div style={{ display: 'inline-flex', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 50, padding: 3, gap: 2 }}>
-                  <button
-                    type="button"
-                    onClick={() => setLibraryViewMode('playlists')}
-                    style={{
-                      background: libraryViewMode === 'playlists' ? 'var(--brand)' : 'transparent',
-                      color: libraryViewMode === 'playlists' ? '#fff' : 'var(--text-muted)',
-                      border: 'none',
-                      borderRadius: 50,
-                      padding: '0.35rem 0.85rem',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-                      boxShadow: libraryViewMode === 'playlists' ? '0 1px 4px rgba(37,99,235,0.25)' : 'none',
-                    }}
-                  >
-                    <ListVideo size={13} /> Unit Playlists
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLibraryViewMode('lessons')}
-                    style={{
-                      background: libraryViewMode === 'lessons' ? 'var(--brand)' : 'transparent',
-                      color: libraryViewMode === 'lessons' ? '#fff' : 'var(--text-muted)',
-                      border: 'none',
-                      borderRadius: 50,
-                      padding: '0.35rem 0.85rem',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-                      boxShadow: libraryViewMode === 'lessons' ? '0 1px 4px rgba(37,99,235,0.25)' : 'none',
-                    }}
-                  >
-                    <Layers size={13} /> All Lessons
-                  </button>
+        {/* ── COURSES & CURRICULUM ── */}
+        {!loading && !error && activeTab === 'library' && (() => {
+          const activeSubject = selectedSubjectId ? subjects.find(s => s.id === selectedSubjectId) : null;
+          const currentVideos = filteredVideos;
+          const totalDurationSec = currentVideos.reduce((acc, v) => acc + (v.duration || 600), 0);
+          const totalHours = Math.floor(totalDurationSec / 3600);
+          const totalMins = Math.round((totalDurationSec % 3600) / 60);
+          const durationStr = totalHours > 0 ? `${totalHours}h ${totalMins}m` : `${totalMins}m`;
+
+          // Unique units count
+          const uniqueUnits = Array.from(new Set(currentVideos.map(v => v.unit || v.chapter).filter(Boolean)));
+          const unitCount = uniqueUnits.length > 0 ? uniqueUnits.length : 1;
+
+          // Count materials attached
+          const materialsCount = currentVideos.filter(v => !!(v.material_url || (v.materials && v.materials.length > 0))).length;
+
+          // First lesson to start or resume
+          const firstLesson = currentVideos[0] || null;
+
+          return (
+            <div key="library" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Course Hero Banner */}
+              <div className="course-hero-banner">
+                <div className="course-hero-left">
+                  <div className="course-hero-icon-box">
+                    {activeSubject ? getSubjectIcon(activeSubject) : <GraduationCap size={32} />}
+                  </div>
+                  <div>
+                    <span className="course-hero-badge">
+                      <BookOpen size={12} /> {activeSubject ? 'Certified Curriculum' : 'Academic Master Library'}
+                    </span>
+                    <h1 className="course-hero-title">
+                      {activeSubject ? activeSubject.name : 'All Courses & Curriculums'}
+                    </h1>
+                    <p className="course-hero-desc">
+                      {activeSubject
+                        ? (activeSubject.description || `Comprehensive, structured lessons and resources in ${activeSubject.name} designed to take you from fundamentals to mastery.`)
+                        : 'Explore complete course modules, structured unit playlists, and downloadable study materials across all academic disciplines.'}
+                    </p>
+                    <div className="course-hero-stats">
+                      <div className="course-stat-pill">
+                        <Layers size={13} color="var(--brand)" />
+                        <span><strong>{unitCount}</strong> {unitCount === 1 ? 'Unit / Module' : 'Units / Modules'}</span>
+                      </div>
+                      <div className="course-stat-pill">
+                        <ListVideo size={13} color="var(--brand)" />
+                        <span><strong>{currentVideos.length}</strong> {currentVideos.length === 1 ? 'Lesson' : 'Lessons'}</span>
+                      </div>
+                      <div className="course-stat-pill">
+                        <Clock size={13} color="var(--brand)" />
+                        <span><strong>{durationStr}</strong> Total Content</span>
+                      </div>
+                      {materialsCount > 0 && (
+                        <div className="course-stat-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.25)', color: '#059669', background: 'rgba(16, 185, 129, 0.08)' }}>
+                          <Paperclip size={13} color="#059669" />
+                          <span><strong>{materialsCount}</strong> Study Materials</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <SlidersHorizontal size={15} color="var(--text-muted)" />
-                <select className="filter-select" value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}>
-                  <option value="newest">Newest First</option>
-                  <option value="views">Most Viewed</option>
-                  <option value="title">A–Z (Alphabetical)</option>
-                  <option value="duration">Longest First</option>
-                </select>
-                {selectedSubjectId && (
-                  <button className="btn-secondary" onClick={() => setSelectedSubjectId(null)} style={{ borderRadius: 50, padding: '0.35rem 0.85rem' }}>
-                    <X size={13} /> Clear Filter
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Horizontal Scrollable Subject Chips Bar */}
-            {subjects.length > 0 && (
-              <div className="subject-chips-bar">
-                <button
-                  className={`subject-chip ${!selectedSubjectId ? 'active' : ''}`}
-                  onClick={() => setSelectedSubjectId(null)}
-                >
-                  <LayoutGrid size={15} />
-                  <span>All Subjects</span>
-                  <span className="chip-badge">{videos.length}</span>
-                </button>
-                {subjects.map(s => {
-                  const isSelected = selectedSubjectId === s.id;
-                  const count = videos.filter(v => {
-                    const vidSubjId = (v.subject_id ?? '').toLowerCase().trim();
-                    const vidSubjName = (v.subject_name ?? '').toLowerCase().trim();
-                    const targetId = s.id.toLowerCase().trim();
-                    const targetName = (s.name ?? '').toLowerCase().trim();
-                    return (
-                      (targetId && vidSubjId === targetId) ||
-                      (targetName && vidSubjName === targetName) ||
-                      (targetName && vidSubjId === targetName) ||
-                      (targetId && vidSubjName === targetId) ||
-                      (targetName && vidSubjName.includes(targetName)) ||
-                      (vidSubjName && targetName.includes(vidSubjName))
-                    );
-                  }).length;
-
-                  return (
+                <div className="course-hero-actions">
+                  {firstLesson && (
                     <button
-                      key={s.id}
-                      className={`subject-chip ${isSelected ? 'active' : ''}`}
-                      onClick={() => setSelectedSubjectId(isSelected ? null : s.id)}
+                      type="button"
+                      className="course-hero-btn-primary"
+                      onClick={() => openVideo(firstLesson)}
                     >
-                      <span className="chip-icon">{getSubjectIcon(s)}</span>
-                      <span>{s.name}</span>
-                      {count > 0 && <span className="chip-badge">{count}</span>}
+                      <Play size={16} fill="#fff" /> Start Course
                     </button>
-                  );
-                })}
+                  )}
+                  {selectedSubjectId && (
+                    <button
+                      type="button"
+                      className="course-hero-btn-secondary"
+                      onClick={() => setSelectedSubjectId(null)}
+                    >
+                      <X size={14} /> Clear Selection
+                    </button>
+                  )}
+                </div>
               </div>
-            )}
 
-            {filteredVideos.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-muted)' }}>
-                <Search size={48} style={{ marginBottom: '1rem', opacity: 0.4 }} />
-                <p style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>No lessons match your search</p>
-                <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>Try choosing another subject or clearing your filter.</p>
-                <button className="btn-secondary" onClick={() => { setSelectedSubjectId(null); setSearchQuery(''); }} style={{ marginTop: '1rem', borderRadius: 50 }}>
-                  Reset all filters
-                </button>
+              {/* Course Controls Bar */}
+              <div className="course-controls-bar">
+                <div className="course-search-wrap">
+                  <Search size={16} className="course-search-icon" />
+                  <input
+                    type="text"
+                    className="course-search-input"
+                    placeholder={`Search within ${activeSubject ? activeSubject.name : 'all courses'}...`}
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', color: 'var(--text-muted)' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="course-controls-right">
+                  {/* Segmented View Switcher */}
+                  <div className="course-segmented-toggle">
+                    <button
+                      type="button"
+                      className={`course-toggle-btn ${libraryViewMode === 'playlists' ? 'active' : ''}`}
+                      onClick={() => setLibraryViewMode('playlists')}
+                    >
+                      <ListVideo size={14} /> Syllabus & Modules
+                    </button>
+                    <button
+                      type="button"
+                      className={`course-toggle-btn ${libraryViewMode === 'lessons' ? 'active' : ''}`}
+                      onClick={() => setLibraryViewMode('lessons')}
+                    >
+                      <Layers size={14} /> All Video Lessons
+                    </button>
+                  </div>
+
+                  {/* Sort Selector */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <SlidersHorizontal size={14} color="var(--text-muted)" />
+                    <select
+                      className="filter-select"
+                      value={sortBy}
+                      onChange={e => setSortBy(e.target.value as typeof sortBy)}
+                    >
+                      <option value="newest">Newest First</option>
+                      <option value="views">Most Viewed</option>
+                      <option value="title">A–Z (Alphabetical)</option>
+                      <option value="duration">Longest First</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div key={libraryViewMode} className="tab-subview-content">
-                {libraryViewMode === 'playlists' ? (
-                  (() => {
-                    const unitGroups = new Map<string, Video[]>();
-                    const unassigned: Video[] = [];
 
-                    filteredVideos.forEach(v => {
-                      const u = v.unit || v.chapter;
-                      if (u) {
-                        if (!unitGroups.has(u)) unitGroups.set(u, []);
-                        unitGroups.get(u)!.push(v);
-                      } else {
-                        unassigned.push(v);
-                      }
-                    });
-
-                    if (unitGroups.size === 0) {
+              {/* Horizontal Scrollable Subject Chips Bar */}
+              {subjects.length > 0 && (
+                <div className="subject-chips-bar">
+                  <button
+                    className={`subject-chip ${!selectedSubjectId ? 'active' : ''}`}
+                    onClick={() => setSelectedSubjectId(null)}
+                  >
+                    <LayoutGrid size={15} />
+                    <span>All Subjects</span>
+                    <span className="chip-badge">{videos.length}</span>
+                  </button>
+                  {subjects.map(s => {
+                    const isSelected = selectedSubjectId === s.id;
+                    const count = videos.filter(v => {
+                      const vidSubjId = (v.subject_id ?? '').toLowerCase().trim();
+                      const vidSubjName = (v.subject_name ?? '').toLowerCase().trim();
+                      const targetId = s.id.toLowerCase().trim();
+                      const targetName = (s.name ?? '').toLowerCase().trim();
                       return (
-                        <div className="video-grid">
-                          {filteredVideos.map(v => (
-                            <VideoCard
-                              key={v.id}
-                              video={v}
-                              onPlay={() => openVideo(v)}
-                              onBookmark={() => handleToggleBookmark(v.id)}
-                              isBookmarked={bookmarkIds.includes(v.id)}
-                            />
-                          ))}
-                        </div>
+                        (targetId && vidSubjId === targetId) ||
+                        (targetName && vidSubjName === targetName) ||
+                        (targetName && vidSubjId === targetName) ||
+                        (targetId && vidSubjName === targetId) ||
+                        (targetName && vidSubjName.includes(targetName)) ||
+                        (vidSubjName && targetName.includes(vidSubjName))
                       );
-                    }
+                    }).length;
 
                     return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        {Array.from(unitGroups.entries()).map(([unitName, unitVids]) => {
-                          const sortedVids = [...unitVids].sort((a, b) => (a.unit_order || 1) - (b.unit_order || 1));
-                          const totalDurationSec = sortedVids.reduce((acc, v) => acc + (v.duration || 600), 0);
+                      <button
+                        key={s.id}
+                        className={`subject-chip ${isSelected ? 'active' : ''}`}
+                        onClick={() => setSelectedSubjectId(isSelected ? null : s.id)}
+                      >
+                        <span className="chip-icon">{getSubjectIcon(s)}</span>
+                        <span>{s.name}</span>
+                        {count > 0 && <span className="chip-badge">{count}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-                          return (
-                            <div
-                              key={unitName}
-                              style={{
-                                background: 'var(--bg-surface)',
-                                border: '1.5px solid var(--border)',
-                                borderRadius: 16,
-                                overflow: 'hidden',
-                                boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
-                              }}
-                            >
-                              <div
-                                style={{
-                                  padding: '1.15rem 1.5rem',
-                                  borderBottom: '1px solid var(--border)',
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  flexWrap: 'wrap',
-                                  gap: '1rem',
-                                  background: 'linear-gradient(to right, rgba(37,99,235,0.06), transparent)',
-                                }}
-                              >
-                                <div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 4 }}>
-                                    <span
-                                      style={{
-                                        fontSize: '0.72rem',
-                                        fontWeight: 800,
-                                        background: 'var(--brand-light)',
-                                        color: 'var(--brand)',
-                                        border: '1px solid rgba(37, 99, 235, 0.18)',
-                                        padding: '0.2rem 0.6rem',
-                                        borderRadius: 6,
-                                      }}
-                                    >
-                                      Unit Playlist
-                                    </span>
-                                    <h3 style={{ margin: 0, fontWeight: 900, fontSize: '1.18rem', color: 'var(--text-primary)' }}>
-                                      {unitName}
-                                    </h3>
+              {/* Lessons / Modules Display */}
+              {filteredVideos.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-muted)' }}>
+                  <Search size={48} style={{ marginBottom: '1rem', opacity: 0.4 }} />
+                  <p style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>No lessons match your search</p>
+                  <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>Try choosing another subject or clearing your filter.</p>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => { setSelectedSubjectId(null); setSearchQuery(''); }}
+                    style={{ marginTop: '1rem', borderRadius: 50 }}
+                  >
+                    Reset all filters
+                  </button>
+                </div>
+              ) : (
+                <div key={libraryViewMode} className="tab-subview-content">
+                  {libraryViewMode === 'playlists' ? (
+                    (() => {
+                      const unitGroups = new Map<string, Video[]>();
+                      const unassigned: Video[] = [];
+
+                      filteredVideos.forEach(v => {
+                        const u = (v.unit || v.chapter || '').trim();
+                        if (u) {
+                          if (!unitGroups.has(u)) unitGroups.set(u, []);
+                          unitGroups.get(u)!.push(v);
+                        } else {
+                          unassigned.push(v);
+                        }
+                      });
+
+                      // If no units or chapters exist, fallback gracefully to clean grid
+                      if (unitGroups.size === 0) {
+                        return (
+                          <div className="video-grid">
+                            {filteredVideos.map(v => (
+                              <VideoCard
+                                key={v.id}
+                                video={v}
+                                onPlay={() => openVideo(v)}
+                                onBookmark={() => handleToggleBookmark(v.id)}
+                                isBookmarked={bookmarkIds.includes(v.id)}
+                              />
+                            ))}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="course-module-container">
+                          {Array.from(unitGroups.entries()).map(([unitName, unitVids], mIdx) => {
+                            const sortedVids = [...unitVids].sort((a, b) => (a.unit_order || 1) - (b.unit_order || 1));
+                            const moduleDurationSec = sortedVids.reduce((acc, v) => acc + (v.duration || 600), 0);
+                            const moduleHours = Math.floor(moduleDurationSec / 3600);
+                            const moduleMins = Math.round((moduleDurationSec % 3600) / 60);
+                            const modDurationStr = moduleHours > 0 ? `${moduleHours}h ${moduleMins}m` : `${moduleMins}m`;
+
+                            return (
+                              <div key={unitName} className="course-module-card">
+                                {/* Module Header */}
+                                <div className="course-module-header">
+                                  <div className="course-module-title-wrap">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 3 }}>
+                                      <span className="course-module-pill">
+                                        MODULE {mIdx + 1}
+                                      </span>
+                                      <h3 className="course-module-title">
+                                        {unitName}
+                                      </h3>
+                                    </div>
+                                    <div className="course-module-meta">
+                                      <span>{sortedVids.length} {sortedVids.length === 1 ? 'Lesson' : 'Lessons'}</span>
+                                      <span>•</span>
+                                      <span>{modDurationStr} duration</span>
+                                    </div>
                                   </div>
-                                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                    {sortedVids.length} {sortedVids.length === 1 ? 'lesson' : 'lessons'} • {formatDuration(totalDurationSec)} total watch time
-                                  </div>
+
+                                  <button
+                                    type="button"
+                                    className="course-module-btn-play"
+                                    onClick={() => openVideo(sortedVids[0])}
+                                  >
+                                    <Play size={13} fill="currentColor" /> Play Module
+                                  </button>
                                 </div>
 
-                                <button
-                                  type="button"
-                                  className="btn-primary"
-                                  onClick={() => openVideo(sortedVids[0])}
-                                  style={{
-                                    borderRadius: 50,
-                                    padding: '0.55rem 1.25rem',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  <Play size={14} fill="#fff" /> Play Unit Playlist
-                                </button>
-                              </div>
+                                {/* Structured Syllabus Lesson Rows */}
+                                <div className="course-lessons-list">
+                                  {sortedVids.map((v, lIdx) => {
+                                    const isBookmarked = bookmarkIds.includes(v.id);
+                                    const progress = progressMap[v.id];
+                                    const isCompleted = progress && progress.duration > 0 && (progress.position / progress.duration >= 0.9);
+                                    const hasMaterial = !!(v.material_url || (v.materials && v.materials.length > 0));
+                                    const materialCount = (v.materials && v.materials.length > 0) ? v.materials.length : (v.material_url ? 1 : 0);
 
-                              <div className="video-grid" style={{ padding: '1.25rem' }}>
-                                {sortedVids.map(v => (
-                                  <VideoCard
-                                    key={v.id}
-                                    video={v}
-                                    onPlay={() => openVideo(v)}
-                                    onBookmark={() => handleToggleBookmark(v.id)}
-                                    isBookmarked={bookmarkIds.includes(v.id)}
-                                  />
-                                ))}
+                                    return (
+                                      <div
+                                        key={v.id}
+                                        className="course-lesson-item"
+                                        onClick={() => openVideo(v)}
+                                      >
+                                        <div className="course-lesson-left">
+                                          {/* Index Bubble or Completed check */}
+                                          <div className={`course-lesson-index-bubble ${isCompleted ? 'completed' : ''}`}>
+                                            {isCompleted ? <Check size={14} strokeWidth={3} /> : (v.unit_order || lIdx + 1)}
+                                          </div>
+
+                                          {/* Thumbnail with duration */}
+                                          <div className="course-lesson-thumb-box">
+                                            {v.thumbnail_url ? (
+                                              <img src={v.thumbnail_url} alt={v.title} className="course-lesson-thumb" />
+                                            ) : (
+                                              <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1e293b, #0f172a)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <Play size={18} color="rgba(255,255,255,0.7)" />
+                                              </div>
+                                            )}
+                                            <div className="course-lesson-play-overlay">
+                                              <Play size={14} fill="#fff" color="#fff" />
+                                            </div>
+                                          </div>
+
+                                          {/* Lesson details */}
+                                          <div className="course-lesson-details">
+                                            <h4 className="course-lesson-title">{v.title}</h4>
+                                            <div className="course-lesson-meta-row">
+                                              <span className="course-lesson-duration-badge">
+                                                <Clock size={11} />
+                                                {formatDuration(v.duration || 600)}
+                                              </span>
+                                              {isCompleted && (
+                                                <span className="course-lesson-completed-tag">
+                                                  <CheckCircle2 size={11} /> Watched
+                                                </span>
+                                              )}
+                                              {hasMaterial && (
+                                                <span
+                                                  className="course-lesson-material-tag"
+                                                  onClick={e => {
+                                                    e.stopPropagation();
+                                                    openVideo(v);
+                                                  }}
+                                                  title="Study materials attached"
+                                                >
+                                                  <Paperclip size={10} />
+                                                  {materialCount > 1 ? `${materialCount} Notes` : 'Notes / PDF'}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="course-lesson-right" onClick={e => e.stopPropagation()}>
+                                          <button
+                                            type="button"
+                                            className={`course-lesson-btn-action ${isBookmarked ? 'bookmarked' : ''}`}
+                                            onClick={() => handleToggleBookmark(v.id)}
+                                            title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}
+                                          >
+                                            <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {unassigned.length > 0 && (
+                            <div className="course-module-card">
+                              <div className="course-module-header">
+                                <div className="course-module-title-wrap">
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 3 }}>
+                                    <span className="course-module-pill">ADDITIONAL</span>
+                                    <h3 className="course-module-title">Supplementary Lessons</h3>
+                                  </div>
+                                  <div className="course-module-meta">
+                                    <span>{unassigned.length} {unassigned.length === 1 ? 'Lesson' : 'Lessons'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="course-lessons-list">
+                                {unassigned.map((v, lIdx) => {
+                                  const isBookmarked = bookmarkIds.includes(v.id);
+                                  const progress = progressMap[v.id];
+                                  const isCompleted = progress && progress.duration > 0 && (progress.position / progress.duration >= 0.9);
+                                  const hasMaterial = !!(v.material_url || (v.materials && v.materials.length > 0));
+
+                                  return (
+                                    <div
+                                      key={v.id}
+                                      className="course-lesson-item"
+                                      onClick={() => openVideo(v)}
+                                    >
+                                      <div className="course-lesson-left">
+                                        <div className={`course-lesson-index-bubble ${isCompleted ? 'completed' : ''}`}>
+                                          {isCompleted ? <Check size={14} strokeWidth={3} /> : (lIdx + 1)}
+                                        </div>
+                                        <div className="course-lesson-thumb-box">
+                                          {v.thumbnail_url ? (
+                                            <img src={v.thumbnail_url} alt={v.title} className="course-lesson-thumb" />
+                                          ) : (
+                                            <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1e293b, #0f172a)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                              <Play size={18} color="rgba(255,255,255,0.7)" />
+                                            </div>
+                                          )}
+                                          <div className="course-lesson-play-overlay">
+                                            <Play size={14} fill="#fff" color="#fff" />
+                                          </div>
+                                        </div>
+                                        <div className="course-lesson-details">
+                                          <h4 className="course-lesson-title">{v.title}</h4>
+                                          <div className="course-lesson-meta-row">
+                                            <span className="course-lesson-duration-badge">
+                                              <Clock size={11} />
+                                              {formatDuration(v.duration || 600)}
+                                            </span>
+                                            {isCompleted && (
+                                              <span className="course-lesson-completed-tag">
+                                                <CheckCircle2 size={11} /> Watched
+                                              </span>
+                                            )}
+                                            {hasMaterial && (
+                                              <span className="course-lesson-material-tag">
+                                                <Paperclip size={10} /> Notes
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="course-lesson-right" onClick={e => e.stopPropagation()}>
+                                        <button
+                                          type="button"
+                                          className={`course-lesson-btn-action ${isBookmarked ? 'bookmarked' : ''}`}
+                                          onClick={() => handleToggleBookmark(v.id)}
+                                        >
+                                          <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
-                          );
-                        })}
-
-                        {unassigned.length > 0 && (
-                          <div>
-                            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.85rem', color: 'var(--text-secondary)' }}>
-                              General Lessons ({unassigned.length})
-                            </h3>
-                            <div className="video-grid">
-                              {unassigned.map(v => (
-                                <VideoCard
-                                  key={v.id}
-                                  video={v}
-                                  onPlay={() => openVideo(v)}
-                                  onBookmark={() => handleToggleBookmark(v.id)}
-                                  isBookmarked={bookmarkIds.includes(v.id)}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <div className="video-grid">
-                    {filteredVideos.map(v => (
-                      <VideoCard
-                        key={v.id}
-                        video={v}
-                        onPlay={() => openVideo(v)}
-                        onBookmark={() => handleToggleBookmark(v.id)}
-                        isBookmarked={bookmarkIds.includes(v.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                          )}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <div className="video-grid">
+                      {filteredVideos.map(v => (
+                        <VideoCard
+                          key={v.id}
+                          video={v}
+                          onPlay={() => openVideo(v)}
+                          onBookmark={() => handleToggleBookmark(v.id)}
+                          isBookmarked={bookmarkIds.includes(v.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── BOOKMARKS ── */}
         {!loading && !error && activeTab === 'bookmarks' && (
