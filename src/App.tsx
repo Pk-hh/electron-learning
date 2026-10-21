@@ -1878,9 +1878,10 @@ export function App() {
               const isCurrentlyLive = activePremStatus.isCurrentlyLive;
               const schedTime = activePremStatus.schedTime;
 
-              // Fallback streaming renderers if not an offline/direct MP4
+              // Streaming renderers if not a direct MP4
               const renderYouTubeStream = !videoSrc && sourceInfo.type === 'youtube';
               const renderDriveStream = !videoSrc && sourceInfo.type === 'drive';
+              const isDirectVideo = Boolean(videoSrc);
 
               return (
                 <div
@@ -1888,11 +1889,13 @@ export function App() {
                   className={`player-video-wrapper ${showControls ? 'controls-visible' : 'controls-hidden'}`}
                   onClick={() => {
                     if (isUpcomingPremiere) return;
-                    if (showControls) setShowControls(false);
-                    else resetControlsTimeout();
+                    if (isDirectVideo) {
+                      if (showControls) setShowControls(false);
+                      else resetControlsTimeout();
+                    }
                   }}
                   onMouseMove={() => {
-                    if (!isUpcomingPremiere) resetControlsTimeout();
+                    if (!isUpcomingPremiere && isDirectVideo) resetControlsTimeout();
                   }}
                 >
                   {isUpcomingPremiere ? (
@@ -1963,16 +1966,11 @@ export function App() {
                     <iframe
                       ref={iframeRef}
                       key={activeVideo.id}
-                      src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}${initialSeekRef.current > 0 ? `&start=${Math.floor(initialSeekRef.current)}` : ''}`}
+                      src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1${initialSeekRef.current > 0 ? `&start=${Math.floor(initialSeekRef.current)}` : ''}`}
                       title={activeVideo.title}
                       className="player-video youtube-player-frame"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
-                      onLoad={() => {
-                        try {
-                          iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening' }), '*');
-                        } catch {}
-                      }}
                     />
                   ) : renderDriveStream ? (
                     <iframe
@@ -2029,10 +2027,10 @@ export function App() {
                     </div>
                   )}
 
-                  {/* Player controls overlays - only rendered when video is actually playing, NOT during premiere countdown */}
+                  {/* Controls Overlays */}
                   {!isUpcomingPremiere && (
                     <>
-                      {/* Top Controls Overlay */}
+                      {/* Top Controls Overlay - always rendered for clean navigation */}
                       <div className="player-overlay-top" onClick={e => e.stopPropagation()}>
                         <button className="player-overlay-btn" onClick={closeVideo} title="Back">
                           <ChevronLeft size={22} />
@@ -2051,109 +2049,114 @@ export function App() {
                         </button>
                       </div>
 
-                      {/* Center Controls Overlay (10s Rewind, Big Play/Pause, 10s Forward) */}
-                      <div className="player-overlay-center" onClick={e => e.stopPropagation()}>
-                        <button
-                          className="player-overlay-btn center-skip-btn"
-                          onClick={() => {
-                            handleSkip(-10);
-                            resetControlsTimeout();
-                          }}
-                          title="Rewind 10s"
-                        >
-                          <RotateCcw size={22} />
-                          <span className="skip-sec-text">10s</span>
-                        </button>
+                      {/* Custom Cinema Center & Bottom Controls for Direct Video Only */}
+                      {isDirectVideo && (
+                        <>
+                          {/* Center Controls Overlay (10s Rewind, Big Play/Pause, 10s Forward) */}
+                          <div className="player-overlay-center" onClick={e => e.stopPropagation()}>
+                            <button
+                              className="player-overlay-btn center-skip-btn"
+                              onClick={() => {
+                                handleSkip(-10);
+                                resetControlsTimeout();
+                              }}
+                              title="Rewind 10s"
+                            >
+                              <RotateCcw size={22} />
+                              <span className="skip-sec-text">10s</span>
+                            </button>
 
-                        <button
-                          className="player-main-play-btn"
-                          onClick={() => {
-                            handleTogglePlay();
-                            resetControlsTimeout();
-                          }}
-                          title={isPlaying ? 'Pause' : 'Play'}
-                        >
-                          {isPlaying ? (
-                            <Pause size={28} fill="currentColor" />
-                          ) : (
-                            <Play size={28} fill="currentColor" style={{ marginLeft: 3 }} />
-                          )}
-                        </button>
+                            <button
+                              className="player-main-play-btn"
+                              onClick={() => {
+                                handleTogglePlay();
+                                resetControlsTimeout();
+                              }}
+                              title={isPlaying ? 'Pause' : 'Play'}
+                            >
+                              {isPlaying ? (
+                                <Pause size={28} fill="currentColor" />
+                              ) : (
+                                <Play size={28} fill="currentColor" style={{ marginLeft: 3 }} />
+                              )}
+                            </button>
 
-                        <button
-                          className="player-overlay-btn center-skip-btn"
-                          onClick={() => {
-                            handleSkip(10);
-                            resetControlsTimeout();
-                          }}
-                          title="Forward 10s"
-                        >
-                          <RotateCw size={22} />
-                          <span className="skip-sec-text">10s</span>
-                        </button>
-                      </div>
+                            <button
+                              className="player-overlay-btn center-skip-btn"
+                              onClick={() => {
+                                handleSkip(10);
+                                resetControlsTimeout();
+                              }}
+                              title="Forward 10s"
+                            >
+                              <RotateCw size={22} />
+                              <span className="skip-sec-text">10s</span>
+                            </button>
+                          </div>
 
-                      {/* Bottom Controls Overlay */}
-                      <div className="player-overlay-bottom" onClick={e => e.stopPropagation()}>
-                        {/* Touch Scrubber Seek Bar */}
-                        <div className="player-scrubber-wrap" onClick={handleSeek}>
-                          <div className="player-scrubber-track">
-                            {isCurrentlyLive && duration > 0 && (
-                              <div
-                                className="player-scrubber-broadcasted"
-                                style={{ width: `${Math.min(100, (activePremStatus.liveOffsetSec / duration) * 100)}%` }}
-                              />
-                            )}
-                            <div className="player-scrubber-fill" style={{ width: `${progressPct}%` }}>
-                              <div className="player-scrubber-thumb" />
+                          {/* Bottom Controls Overlay */}
+                          <div className="player-overlay-bottom" onClick={e => e.stopPropagation()}>
+                            {/* Touch Scrubber Seek Bar */}
+                            <div className="player-scrubber-wrap" onClick={handleSeek}>
+                              <div className="player-scrubber-track">
+                                {isCurrentlyLive && duration > 0 && (
+                                  <div
+                                    className="player-scrubber-broadcasted"
+                                    style={{ width: `${Math.min(100, (activePremStatus.liveOffsetSec / duration) * 100)}%` }}
+                                  />
+                                )}
+                                <div className="player-scrubber-fill" style={{ width: `${progressPct}%` }}>
+                                  <div className="player-scrubber-thumb" />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="player-bottom-row">
+                              <div className="player-time-text" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {isCurrentlyLive && (
+                                  <button
+                                    className={`player-live-badge-btn ${Math.abs(currentTime - activePremStatus.liveOffsetSec) <= 3 ? 'live-synced' : 'live-behind'}`}
+                                    onClick={handleJumpToLive}
+                                    title="Click to sync to live broadcast"
+                                  >
+                                    <span className="live-dot-pulse" />
+                                    {Math.abs(currentTime - activePremStatus.liveOffsetSec) <= 3 ? 'LIVE' : 'GO TO LIVE'}
+                                  </button>
+                                )}
+                                <span>{fmt(currentTime)}</span>
+                                <span style={{ opacity: 0.6 }}>/</span>
+                                <span style={{ opacity: 0.8 }}>{fmt(duration || activeVideo.duration || 600)}</span>
+                              </div>
+
+                              <div className="player-bottom-actions">
+                                <button
+                                  className="player-overlay-icon-btn"
+                                  onClick={handleToggleMute}
+                                  title={isMuted ? 'Unmute' : 'Mute'}
+                                >
+                                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                                </button>
+
+                                <button
+                                  className="player-speed-badge-btn"
+                                  onClick={handleCycleSpeed}
+                                  title="Playback Speed"
+                                >
+                                  {playbackSpeed}×
+                                </button>
+
+                                <button
+                                  className="player-overlay-icon-btn"
+                                  onClick={handleFullscreen}
+                                  title="Fullscreen"
+                                >
+                                  <Maximize size={18} />
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="player-bottom-row">
-                          <div className="player-time-text" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {isCurrentlyLive && (
-                              <button
-                                className={`player-live-badge-btn ${Math.abs(currentTime - activePremStatus.liveOffsetSec) <= 3 ? 'live-synced' : 'live-behind'}`}
-                                onClick={handleJumpToLive}
-                                title="Click to sync to live broadcast"
-                              >
-                                <span className="live-dot-pulse" />
-                                {Math.abs(currentTime - activePremStatus.liveOffsetSec) <= 3 ? 'LIVE' : 'GO TO LIVE'}
-                              </button>
-                            )}
-                            <span>{fmt(currentTime)}</span>
-                            <span style={{ opacity: 0.6 }}>/</span>
-                            <span style={{ opacity: 0.8 }}>{fmt(duration || activeVideo.duration || 600)}</span>
-                          </div>
-
-                          <div className="player-bottom-actions">
-                            <button
-                              className="player-overlay-icon-btn"
-                              onClick={handleToggleMute}
-                              title={isMuted ? 'Unmute' : 'Mute'}
-                            >
-                              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                            </button>
-
-                            <button
-                              className="player-speed-badge-btn"
-                              onClick={handleCycleSpeed}
-                              title="Playback Speed"
-                            >
-                              {playbackSpeed}×
-                            </button>
-
-                            <button
-                              className="player-overlay-icon-btn"
-                              onClick={handleFullscreen}
-                              title="Fullscreen"
-                            >
-                              <Maximize size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
