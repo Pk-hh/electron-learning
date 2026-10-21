@@ -536,15 +536,17 @@ export function parseVideoSource(url: string): VideoSourceInfo {
     };
   }
 
-  // File match (file/d/ID, open?id=ID, uc?id=ID, docs.google.com/file/d/ID)
+  // File match (file/d/ID, open?id=ID, uc?id=ID, docs.google.com/file/d/ID, drive.usercontent.google.com)
   const driveFileMatch = cleanUrl.match(
-    /(?:drive|docs)\.google\.com\/(?:file\/(?:u\/\d+\/)?d\/|open\?id=|uc\?(?:.*&)?id=)([a-zA-Z0-9_-]+)/i
+    /(?:(?:drive|docs)\.google\.com\/(?:file\/(?:u\/\d+\/)?d\/|open\?id=|uc\?(?:.*&)?id=)|drive\.usercontent\.google\.com\/download\?id=)([a-zA-Z0-9_-]+)/i
   );
   if (driveFileMatch && driveFileMatch[1]) {
     const fileId = driveFileMatch[1];
     let directStream: string | undefined = undefined;
     if (fileId === '1akjgeI2iL4n_yyigsVDSBHiowBoWufbM') {
       directStream = `/videos/pn_junction_diode.mp4`;
+    } else {
+      directStream = `https://drive.google.com/uc?export=download&id=${fileId}`;
     }
     return {
       type: 'drive',
