@@ -2012,15 +2012,18 @@ html, body {
 
   .player-video-wrapper {
     width: 100% !important;
-    aspect-ratio: 16/9 !important;
-    min-height: 215px !important;
-    max-height: 40vh !important;
+    aspect-ratio: 16 / 9 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 48vh !important;
+    background: #000000;
   }
 
   .drive-player-frame-container,
   .drive-player-frame {
     width: 100% !important;
     height: 100% !important;
+    object-fit: contain !important;
   }
 
   .btn-label-desktop {

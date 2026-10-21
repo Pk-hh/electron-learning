@@ -457,10 +457,36 @@ export function probeVideoDuration(url: string): Promise<number> {
 // ─── Video Link & Source Parser ──────────────────────────────────────────────
 
 export function resolveLocalVideoPath(filename: string): string {
-  if (typeof window === 'undefined') return `./videos/${filename}`;
-  const p = window.location.pathname;
-  const base = p.endsWith('/') ? p : p.substring(0, p.lastIndexOf('/') + 1);
-  return `${base}videos/${filename}`;
+  const cleanName = filename.replace(/^\/+/, '');
+  if (typeof window === 'undefined') return `./videos/${cleanName}`;
+
+  // 1. If an explicit <base href="..."> is present in the document
+  if (typeof document !== 'undefined') {
+    const baseEl = document.querySelector('base');
+    if (baseEl && baseEl.href) {
+      try {
+        return new URL(`videos/${cleanName}`, baseEl.href).href;
+      } catch {}
+    }
+  }
+
+  // 2. Derive robustly from window.location
+  try {
+    const origin = window.location.origin;
+    let pathname = window.location.pathname || '/';
+
+    // Strip trailing filename like index.html or other route file extensions
+    pathname = pathname.replace(/\/[^\/]+\.[^\/]+$/, '');
+
+    // Ensure trailing slash on directory path
+    if (!pathname.endsWith('/')) {
+      pathname = pathname + '/';
+    }
+
+    return `${origin}${pathname}videos/${cleanName}`;
+  } catch {
+    return `./videos/${cleanName}`;
+  }
 }
 
 export interface VideoSourceInfo {
@@ -521,7 +547,7 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   );
   if (driveFolderMatch && driveFolderMatch[1]) {
     const folderId = driveFolderMatch[1];
-    if (folderId === '1j3hCE2dpEkKvTS8lV0J6bXAmsK9u4BTh') {
+    if (folderId.toLowerCase() === '1j3hce2dpekkvts8lv0j6bxamsk9u4bth') {
       const fileId = '1akjgeI2iL4n_yyigsVDSBHiowBoWufbM';
       return {
         type: 'drive',
@@ -550,8 +576,20 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   if (driveFileMatch && driveFileMatch[1]) {
     const fileId = driveFileMatch[1];
     let directStream: string | undefined = undefined;
-    if (fileId === '1akjgeI2iL4n_yyigsVDSBHiowBoWufbM' || cleanUrl.includes('junction') || cleanUrl.includes('diode')) {
+    const lowerUrl = cleanUrl.toLowerCase();
+    if (
+      fileId.toLowerCase() === '1akjgei2il4n_yyigsvdsbhiowbowufbm' ||
+      lowerUrl.includes('junction') ||
+      lowerUrl.includes('diode') ||
+      lowerUrl.includes('characteristic') ||
+      lowerUrl.includes('v-i') ||
+      lowerUrl.includes('p-n')
+    ) {
       directStream = resolveLocalVideoPath('pn_junction_diode.mp4');
+    } else if (lowerUrl.includes('logic') || lowerUrl.includes('gate') || lowerUrl.includes('qrtveulopqq')) {
+      directStream = resolveLocalVideoPath('logic_gates.mp4');
+    } else {
+      directStream = `https://drive.google.com/uc?export=download&id=${fileId}`;
     }
     return {
       type: 'drive',

@@ -1959,14 +1959,19 @@ export function App() {
                 rawTitle.includes('diode') ||
                 rawTitle.includes('junction') ||
                 rawTitle.includes('v-i') ||
-                rawTitle.includes('characteristic')
+                rawTitle.includes('characteristic') ||
+                rawTitle.includes('p-n') ||
+                rawTitle.includes('semiconductor') ||
+                rawTitle.includes('bias')
               ) {
                 videoSrc = resolveLocalVideoPath('pn_junction_diode.mp4');
               } else if (
                 rawUrl.includes('logic_gates') ||
                 rawUrl.includes('qrtveulopqq') ||
                 rawTitle.includes('logic') ||
-                rawTitle.includes('gate')
+                rawTitle.includes('gate') ||
+                rawTitle.includes('boolean') ||
+                rawTitle.includes('truth table')
               ) {
                 videoSrc = resolveLocalVideoPath('logic_gates.mp4');
               } else if (sourceInfo.directStreamUrl) {
@@ -2144,17 +2149,74 @@ export function App() {
                       onPause={() => setIsPlaying(false)}
                       autoPlay
                       onError={() => {
-                        if (
-                          videoRef.current &&
-                          !videoRef.current.src.includes('pn_junction_diode.mp4') &&
-                          (rawTitle.includes('diode') || rawUrl.includes('junction') || rawUrl.includes('1akjge'))
-                        ) {
-                          videoRef.current.src = resolveLocalVideoPath('pn_junction_diode.mp4');
-                          videoRef.current.play().catch(() => {});
-                          return;
+                        const vEl = videoRef.current;
+                        if (!vEl) return;
+                        const currentSrc = vEl.src || '';
+
+                        // 1. Retry diode/junction video with alternate local paths
+                        const isDiode =
+                          rawTitle.includes('diode') ||
+                          rawTitle.includes('junction') ||
+                          rawTitle.includes('v-i') ||
+                          rawTitle.includes('characteristic') ||
+                          rawTitle.includes('p-n') ||
+                          rawTitle.includes('semiconductor') ||
+                          rawTitle.includes('bias') ||
+                          rawUrl.includes('diode') ||
+                          rawUrl.includes('junction') ||
+                          rawUrl.includes('1akjge') ||
+                          rawUrl.includes('1j3hce');
+
+                        if (isDiode) {
+                          if (!currentSrc.includes('pn_junction_diode.mp4')) {
+                            vEl.src = resolveLocalVideoPath('pn_junction_diode.mp4');
+                            vEl.play().catch(() => {});
+                            return;
+                          }
+                          if (currentSrc.startsWith('http') && !currentSrc.includes('./videos')) {
+                            vEl.src = './videos/pn_junction_diode.mp4';
+                            vEl.play().catch(() => {});
+                            return;
+                          }
+                          if (!currentSrc.includes('/electron-learning/')) {
+                            vEl.src = `${window.location.origin}/electron-learning/videos/pn_junction_diode.mp4`;
+                            vEl.play().catch(() => {});
+                            return;
+                          }
                         }
+
+                        // 2. Retry logic gates video with alternate local paths
+                        const isLogic =
+                          rawTitle.includes('logic') ||
+                          rawTitle.includes('gate') ||
+                          rawTitle.includes('boolean') ||
+                          rawTitle.includes('truth table') ||
+                          rawUrl.includes('logic') ||
+                          rawUrl.includes('gate') ||
+                          rawUrl.includes('qrtveulopqq');
+
+                        if (isLogic) {
+                          if (!currentSrc.includes('logic_gates.mp4')) {
+                            vEl.src = resolveLocalVideoPath('logic_gates.mp4');
+                            vEl.play().catch(() => {});
+                            return;
+                          }
+                          if (currentSrc.startsWith('http') && !currentSrc.includes('./videos')) {
+                            vEl.src = './videos/logic_gates.mp4';
+                            vEl.play().catch(() => {});
+                            return;
+                          }
+                          if (!currentSrc.includes('/electron-learning/')) {
+                            vEl.src = `${window.location.origin}/electron-learning/videos/logic_gates.mp4`;
+                            vEl.play().catch(() => {});
+                            return;
+                          }
+                        }
+
+                        // 3. Only fallback to Drive embed if direct video streams cannot be played
                         if (sourceInfo.type === 'drive') {
                           setDriveForceEmbed(true);
+                          showToast('Playing Google Drive stream');
                         } else {
                           setFallbackToIframe(true);
                         }
