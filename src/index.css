@@ -1024,15 +1024,18 @@ html, body {
   position: relative;
   background: #000000;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Crop out external Drive top bar so video stays in our clean cinema format */
+/* Ensure Google Drive iframe fits 100% of mobile and desktop screens perfectly without clipping */
 .drive-player-frame {
   position: absolute;
-  top: -54px;
+  top: 0;
   left: 0;
   width: 100% !important;
-  height: calc(100% + 54px) !important;
+  height: 100% !important;
   border: none !important;
   display: block;
   background: #000000;
@@ -1289,12 +1292,13 @@ html, body {
 .player-video-wrapper:-webkit-full-screen .drive-player-frame,
 .player-video-wrapper.is-fullscreen .drive-player-frame {
   position: absolute !important;
-  top: -54px !important;
+  top: 0 !important;
   left: 0 !important;
   width: 100% !important;
-  height: calc(100% + 54px) !important;
+  height: 100% !important;
   max-width: 100% !important;
-  max-height: calc(100% + 54px) !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
 }
 
 /* Fullscreen safe area padding for modern mobile devices (notch & navigation bars) */
@@ -1997,6 +2001,28 @@ html, body {
     border: none;
   }
 
+  .player-modal-nav {
+    padding: 0.45rem 0.75rem !important;
+  }
+
+  .player-top-lesson-title {
+    font-size: 0.85rem !important;
+    max-width: 170px !important;
+  }
+
+  .player-video-wrapper {
+    width: 100% !important;
+    aspect-ratio: 16/9 !important;
+    min-height: 215px !important;
+    max-height: 40vh !important;
+  }
+
+  .drive-player-frame-container,
+  .drive-player-frame {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
   .btn-label-desktop {
     display: none !important;
   }
@@ -2032,6 +2058,38 @@ html, body {
 @media (min-width: 480px) and (max-width: 768px) {
   .video-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Full Mobile Landscape Theater Mode: When mobile device is turned to landscape */
+@media (max-width: 920px) and (orientation: landscape) and (max-height: 520px) {
+  .player-modal {
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #000000 !important;
+  }
+  .player-modal-nav {
+    display: none !important;
+  }
+  .player-scroll-content {
+    display: none !important;
+  }
+  .player-video-wrapper {
+    width: 100vw !important;
+    width: 100dvw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    aspect-ratio: auto !important;
+    border-radius: 0 !important;
+  }
+  .drive-player-frame-container,
+  .drive-player-frame {
+    width: 100% !important;
+    height: 100% !important;
   }
 }
 

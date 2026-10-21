@@ -2105,7 +2105,7 @@ export function App() {
                         src={sourceInfo.embedUrl}
                         title={activeVideo.title}
                         className="player-video drive-player-frame"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                         allowFullScreen
                       />
                     </div>
