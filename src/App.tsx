@@ -68,7 +68,7 @@ export function getPremiereStatus(v: Video | null | undefined, nowMs: number) {
   const isEnded = schedTime > 0 && nowMs >= (schedTime + durMs);
   const liveOffsetSec = isCurrentlyLive
     ? Math.min(durSec, Math.max(0, Math.floor((nowMs - schedTime) / 1000)))
-    : (isEnded ? durSec : 0);
+    : 0;
 
   return {
     isPremiere: true,
@@ -201,6 +201,7 @@ export function App() {
   }, []);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const initialSeekRef = useRef<number>(0);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsTimeoutRef = useRef<any>(null);
@@ -502,42 +503,55 @@ export function App() {
 
   // ── Player ────────────────────────────────────────────────────────────────
   const openVideo = (video: Video, startSeconds = 0) => {
-    const saved = getLocalProgress(video.id);
-    const resumeAt = startSeconds > 0 ? startSeconds : (saved?.position ?? 0);
+    const premStatus = getPremiereStatus(video, Date.now());
+    let resumeAt = startSeconds;
+
+    if (premStatus.isUpcoming) {
+      // Upcoming premiere: do NOT play before the scheduled time!
+      resumeAt = 0;
+    } else if (premStatus.isCurrentlyLive) {
+      // Joining an ongoing live broadcast: sync to live edge offset
+      resumeAt = premStatus.liveOffsetSec;
+      recordVideoView(video.id, video.views).then(newCount => {
+        if (newCount && newCount > (video.views || 0)) {
+          setActiveVideo(prev => (prev && prev.id === video.id ? { ...prev, views: newCount } : prev));
+          setVideos(prev => prev.map(v => (v.id === video.id ? { ...v, views: newCount } : v)));
+        }
+      });
+    } else {
+      // Normal video or ended replay: resume progress
+      const saved = getLocalProgress(video.id);
+      resumeAt = startSeconds > 0 ? startSeconds : (saved?.position ?? 0);
+      recordVideoView(video.id, video.views).then(newCount => {
+        if (newCount && newCount > (video.views || 0)) {
+          setActiveVideo(prev => (prev && prev.id === video.id ? { ...prev, views: newCount } : prev));
+          setVideos(prev => prev.map(v => (v.id === video.id ? { ...v, views: newCount } : v)));
+        }
+      });
+    }
+
+    initialSeekRef.current = resumeAt;
     setActiveVideo(video);
     setCurrentTime(resumeAt);
     setDuration(video.duration || 0);
     setBookmarked(getLocalBookmarks().includes(video.id));
-    setIsPlaying(false);
+    setIsPlaying(!premStatus.isUpcoming);
     setShowControls(true);
     setIsDescExpanded(false);
     setFallbackToIframe(false);
 
-    // Record view in database and update state dynamically
-    recordVideoView(video.id, video.views).then(newCount => {
-      if (newCount && newCount > (video.views || 0)) {
-        setActiveVideo(prev => (prev && prev.id === video.id ? { ...prev, views: newCount } : prev));
-        setVideos(prev => prev.map(v => (v.id === video.id ? { ...v, views: newCount } : v)));
-      }
-    });
-
     // Only autoplay if it is NOT an upcoming premiere waiting for countdown
-    const isLive = Boolean(video.is_live);
-    const schedMs = video.scheduled_at ? new Date(video.scheduled_at).getTime() : 0;
-    const isUpcoming = isLive && schedMs > Date.now();
-
-    if (!isUpcoming) {
+    if (!premStatus.isUpcoming) {
       setTimeout(() => {
         if (videoRef.current) {
           if (resumeAt > 0) videoRef.current.currentTime = resumeAt;
           videoRef.current.play()
             .then(() => setIsPlaying(true))
             .catch(() => {
-              // Autoplay rejected or waiting for user gesture
               setIsPlaying(false);
             });
         }
-      }, 120);
+      }, 150);
     }
   };
 
@@ -1846,10 +1860,12 @@ export function App() {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
               const rawUrl = (activeVideo.video_url || '').toLowerCase();
 
-              // Resolve video source without title keyword hijacking
+              // Resolve video source (direct stream or local MP4 cache)
               let videoSrc: string | null = null;
-              if (sourceInfo.type === 'direct') {
-                videoSrc = sourceInfo.directStreamUrl || activeVideo.video_url;
+              if (sourceInfo.directStreamUrl) {
+                videoSrc = sourceInfo.directStreamUrl;
+              } else if (sourceInfo.type === 'direct') {
+                videoSrc = activeVideo.video_url;
               } else if (rawUrl.includes('logic_gates.mp4')) {
                 videoSrc = './videos/logic_gates.mp4';
               } else if (rawUrl.includes('pn_junction_diode.mp4')) {
@@ -1944,48 +1960,28 @@ export function App() {
                       </div>
                     </div>
                   ) : renderYouTubeStream ? (
-                    <>
-                      <iframe
-                        ref={iframeRef}
-                        key={activeVideo.id}
-                        src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}${currentTime > 0 ? `&start=${Math.floor(currentTime)}` : ''}`}
-                        title={activeVideo.title}
-                        className="player-video youtube-player-frame"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        onLoad={() => {
-                          try {
-                            iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening' }), '*');
-                          } catch {}
-                        }}
-                      />
-                      <div
-                        className="player-iframe-interaction-catcher"
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleTogglePlay();
-                          resetControlsTimeout();
-                        }}
-                      />
-                    </>
+                    <iframe
+                      ref={iframeRef}
+                      key={activeVideo.id}
+                      src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}${initialSeekRef.current > 0 ? `&start=${Math.floor(initialSeekRef.current)}` : ''}`}
+                      title={activeVideo.title}
+                      className="player-video youtube-player-frame"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      onLoad={() => {
+                        try {
+                          iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening' }), '*');
+                        } catch {}
+                      }}
+                    />
                   ) : renderDriveStream ? (
-                    <>
-                      <iframe
-                        src={sourceInfo.embedUrl}
-                        title={activeVideo.title}
-                        className="player-video drive-player-frame"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                      <div
-                        className="player-iframe-interaction-catcher"
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleTogglePlay();
-                          resetControlsTimeout();
-                        }}
-                      />
-                    </>
+                    <iframe
+                      src={sourceInfo.embedUrl}
+                      title={activeVideo.title}
+                      className="player-video drive-player-frame"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
                   ) : (
                     <video
                       ref={videoRef}
@@ -2009,8 +2005,11 @@ export function App() {
                           const currIdx = unitVids.findIndex(v => v.id === activeVideo.id);
                           if (currIdx >= 0 && currIdx < unitVids.length - 1) {
                             const nextVid = unitVids[currIdx + 1];
-                            showToast(`Next in Playlist: ${nextVid.title}`);
-                            setTimeout(() => openVideo(nextVid), 1200);
+                            const nextPStat = getPremiereStatus(nextVid, Date.now());
+                            if (!nextPStat.isUpcoming) {
+                              showToast(`Next in Playlist: ${nextVid.title}`);
+                              setTimeout(() => openVideo(nextVid), 1200);
+                            }
                           }
                         }
                       }}
@@ -2112,8 +2111,8 @@ export function App() {
                         </div>
 
                         <div className="player-bottom-row">
-                          <div className="player-time-text">
-                            {isCurrentlyLive ? (
+                          <div className="player-time-text" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {isCurrentlyLive && (
                               <button
                                 className={`player-live-badge-btn ${Math.abs(currentTime - activePremStatus.liveOffsetSec) <= 3 ? 'live-synced' : 'live-behind'}`}
                                 onClick={handleJumpToLive}
@@ -2122,13 +2121,10 @@ export function App() {
                                 <span className="live-dot-pulse" />
                                 {Math.abs(currentTime - activePremStatus.liveOffsetSec) <= 3 ? 'LIVE' : 'GO TO LIVE'}
                               </button>
-                            ) : (
-                              <>
-                                <span>{fmt(currentTime)}</span>
-                                <span style={{ opacity: 0.6, margin: '0 4px' }}>/</span>
-                                <span style={{ opacity: 0.8 }}>{fmt(duration)}</span>
-                              </>
                             )}
+                            <span>{fmt(currentTime)}</span>
+                            <span style={{ opacity: 0.6 }}>/</span>
+                            <span style={{ opacity: 0.8 }}>{fmt(duration || activeVideo.duration || 600)}</span>
                           </div>
 
                           <div className="player-bottom-actions">
