@@ -32,6 +32,55 @@ import {
   deleteLocalNote,
 } from './services/videoService';
 
+
+// ── Premiere & Live Stream State Helper ─────────────────────────────────────
+export function getPremiereStatus(v: Video | null | undefined, nowMs: number) {
+  if (!v) {
+    return {
+      isPremiere: false,
+      isUpcoming: false,
+      isCurrentlyLive: false,
+      isEnded: false,
+      liveOffsetSec: 0,
+      schedTime: 0,
+      durSec: 0,
+    };
+  }
+  const isLiveFlag = Boolean(v.is_live);
+  const schedTime = v.scheduled_at ? new Date(v.scheduled_at).getTime() : 0;
+  const hasSchedule = schedTime > 0;
+  if (!isLiveFlag && !hasSchedule) {
+    return {
+      isPremiere: false,
+      isUpcoming: false,
+      isCurrentlyLive: false,
+      isEnded: false,
+      liveOffsetSec: 0,
+      schedTime: 0,
+      durSec: v.duration || 600,
+    };
+  }
+
+  const durSec = v.duration && v.duration > 0 ? v.duration : 600;
+  const durMs = durSec * 1000;
+  const isUpcoming = schedTime > nowMs;
+  const isCurrentlyLive = schedTime > 0 && schedTime <= nowMs && nowMs < (schedTime + durMs);
+  const isEnded = schedTime > 0 && nowMs >= (schedTime + durMs);
+  const liveOffsetSec = isCurrentlyLive
+    ? Math.min(durSec, Math.max(0, Math.floor((nowMs - schedTime) / 1000)))
+    : (isEnded ? durSec : 0);
+
+  return {
+    isPremiere: true,
+    isUpcoming,
+    isCurrentlyLive,
+    isEnded,
+    liveOffsetSec,
+    schedTime,
+    durSec,
+  };
+}
+
 // ── Subject icon map ──────────────────────────────────────────────────────────
 const SUBJECT_ICONS: Record<string, React.ReactNode> = {
   math:        <Calculator size={20} />,
@@ -196,6 +245,28 @@ export function App() {
       }
     } catch {}
   }, []);
+
+  // Auto-start video when countdown reaches 0
+  const prevIsUpcomingRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (!activeVideo) return;
+    const status = getPremiereStatus(activeVideo, currentClockMs);
+    if (prevIsUpcomingRef.current && !status.isUpcoming) {
+      showToast('🎉 Premiere is now streaming LIVE!');
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0;
+          videoRef.current.play()
+            .then(() => setIsPlaying(true))
+            .catch(() => setIsPlaying(false));
+        } else if (iframeRef.current?.contentWindow) {
+          sendYTCommand('playVideo');
+          setIsPlaying(true);
+        }
+      }, 300);
+    }
+    prevIsUpcomingRef.current = status.isUpcoming;
+  }, [activeVideo, currentClockMs]);
 
   // Speed cycler (1x -> 1.25x -> 1.5x -> 2x -> 0.75x)
   const SPEEDS = [1.0, 1.25, 1.5, 2.0, 0.75];
@@ -529,6 +600,9 @@ export function App() {
   };
 
   const handleTogglePlay = () => {
+    const premStatus = getPremiereStatus(activeVideo, currentClockMs);
+    if (premStatus.isUpcoming) return;
+
     if (iframeRef.current?.contentWindow) {
       if (isPlaying) {
         sendYTCommand('pauseVideo');
@@ -568,15 +642,25 @@ export function App() {
     if (curDur > 0 && Math.abs(curDur - duration) > 1) {
       setDuration(Math.round(curDur));
     }
-    if (Math.floor(cur) % 5 === 0)
+    const pStat = getPremiereStatus(activeVideo, currentClockMs);
+    if (!pStat.isUpcoming && !pStat.isCurrentlyLive && Math.floor(cur) % 5 === 0) {
       saveLocalProgress(activeVideo.id, cur, curDur);
+    }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const total = duration || (videoRef.current ? videoRef.current.duration : 600);
-    const target = pct * total;
+    let target = pct * total;
+
+    const premStatus = getPremiereStatus(activeVideo, currentClockMs);
+    if (premStatus.isUpcoming) return;
+    if (premStatus.isCurrentlyLive && target > premStatus.liveOffsetSec) {
+      target = premStatus.liveOffsetSec;
+      showToast('Cannot seek past live broadcast edge');
+    }
+
     if (iframeRef.current?.contentWindow) {
       sendYTCommand('seekTo', [target, true]);
       setCurrentTime(target);
@@ -589,17 +673,47 @@ export function App() {
   };
 
   const handleSkip = (secs: number) => {
+    const premStatus = getPremiereStatus(activeVideo, currentClockMs);
+    if (premStatus.isUpcoming) return;
+
+    const maxDur = premStatus.isCurrentlyLive
+      ? premStatus.liveOffsetSec
+      : (videoRef.current?.duration || duration || 600);
+
+    const baseTime = videoRef.current ? videoRef.current.currentTime : currentTime;
+    let target = Math.max(0, Math.min(maxDur, baseTime + secs));
+
+    if (premStatus.isCurrentlyLive && baseTime + secs > premStatus.liveOffsetSec) {
+      target = premStatus.liveOffsetSec;
+      showToast('At live broadcast edge');
+    }
+
     if (iframeRef.current?.contentWindow) {
-      const target = Math.max(0, Math.min(duration || 600, currentTime + secs));
       sendYTCommand('seekTo', [target, true]);
       setCurrentTime(target);
       resetControlsTimeout();
     }
     if (!videoRef.current) return;
-    const maxDur = videoRef.current.duration || duration || 600;
-    const target = Math.max(0, Math.min(maxDur, videoRef.current.currentTime + secs));
     videoRef.current.currentTime = target;
     setCurrentTime(target);
+    resetControlsTimeout();
+  };
+
+  const handleJumpToLive = () => {
+    const premStatus = getPremiereStatus(activeVideo, currentClockMs);
+    if (!premStatus.isCurrentlyLive) return;
+    const target = premStatus.liveOffsetSec;
+    if (iframeRef.current?.contentWindow) {
+      sendYTCommand('seekTo', [target, true]);
+    }
+    if (videoRef.current) {
+      videoRef.current.currentTime = target;
+      if (videoRef.current.paused) {
+        videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+    }
+    setCurrentTime(target);
+    showToast('🔴 Synced to Live');
     resetControlsTimeout();
   };
 
@@ -1730,23 +1844,23 @@ export function App() {
             {/* Video Container (Our Designed Cinema Player Only!) */}
             {(() => {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
-              const rawTitle = (activeVideo.title || '').toLowerCase();
               const rawUrl = (activeVideo.video_url || '').toLowerCase();
 
-              // Resolve video source (FastStart MP4 or source URL)
+              // Resolve video source without title keyword hijacking
               let videoSrc: string | null = null;
-              if (rawTitle.includes('logic') || rawUrl.includes('logic') || rawUrl.includes('qrtveulopqq')) {
-                videoSrc = './videos/logic_gates.mp4';
-              } else if (rawTitle.includes('diode') || rawTitle.includes('junction') || rawTitle.includes('chatrcter') || rawUrl.includes('junction') || rawUrl.includes('1j3hce2') || rawUrl.includes('1akjgei')) {
-                videoSrc = './videos/pn_junction_diode.mp4';
-              } else if (sourceInfo.type === 'direct') {
+              if (sourceInfo.type === 'direct') {
                 videoSrc = sourceInfo.directStreamUrl || activeVideo.video_url;
+              } else if (rawUrl.includes('logic_gates.mp4')) {
+                videoSrc = './videos/logic_gates.mp4';
+              } else if (rawUrl.includes('pn_junction_diode.mp4')) {
+                videoSrc = './videos/pn_junction_diode.mp4';
               }
 
-              // Live Stream / Premiere checks
-              const isLive = Boolean(activeVideo.is_live);
-              const schedTime = activeVideo.scheduled_at ? new Date(activeVideo.scheduled_at).getTime() : 0;
-              const isUpcomingPremiere = isLive && schedTime > currentClockMs;
+              // Premiere status calculations
+              const activePremStatus = getPremiereStatus(activeVideo, currentClockMs);
+              const isUpcomingPremiere = activePremStatus.isUpcoming;
+              const isCurrentlyLive = activePremStatus.isCurrentlyLive;
+              const schedTime = activePremStatus.schedTime;
 
               // Fallback streaming renderers if not an offline/direct MP4
               const renderYouTubeStream = !videoSrc && sourceInfo.type === 'youtube';
@@ -1767,6 +1881,25 @@ export function App() {
                 >
                   {isUpcomingPremiere ? (
                     <div className="live-premiere-countdown-screen">
+                      {/* Dedicated topbar so students can exit or bookmark anytime */}
+                      <div className="live-premiere-topbar">
+                        <button className="player-overlay-btn" onClick={closeVideo} title="Back">
+                          <ChevronLeft size={22} />
+                        </button>
+                        <div className="live-premiere-top-title">{activeVideo.title}</div>
+                        <button
+                          className="player-overlay-btn"
+                          onClick={() => handleToggleBookmark(activeVideo.id)}
+                          title="Save lesson"
+                        >
+                          <Bookmark
+                            size={18}
+                            fill={bookmarked ? 'var(--brand)' : 'none'}
+                            color={bookmarked ? 'var(--brand)' : '#fff'}
+                          />
+                        </button>
+                      </div>
+
                       <div className="live-premiere-box">
                         <div className="live-premiere-pill">
                           <Radio size={14} className="pulse-red" /> SCHEDULED LIVE PREMIERE
@@ -1805,25 +1938,54 @@ export function App() {
                         <div style={{ marginTop: '1.25rem', fontSize: '0.82rem', color: '#94A3B8' }}>
                           Stay tuned! The live stream will begin automatically when the countdown ends.
                         </div>
+                        <button className="live-premiere-exit-btn" onClick={closeVideo}>
+                          <ChevronLeft size={16} /> Return to Course Catalog
+                        </button>
                       </div>
                     </div>
                   ) : renderYouTubeStream ? (
-                    <iframe
-                      ref={iframeRef}
-                      src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=${window.location.origin}`}
-                      title={activeVideo.title}
-                      className="player-video youtube-player-frame"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
+                    <>
+                      <iframe
+                        ref={iframeRef}
+                        key={activeVideo.id}
+                        src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&controls=0&modestbranding=1&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}${currentTime > 0 ? `&start=${Math.floor(currentTime)}` : ''}`}
+                        title={activeVideo.title}
+                        className="player-video youtube-player-frame"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        onLoad={() => {
+                          try {
+                            iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening' }), '*');
+                          } catch {}
+                        }}
+                      />
+                      <div
+                        className="player-iframe-interaction-catcher"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleTogglePlay();
+                          resetControlsTimeout();
+                        }}
+                      />
+                    </>
                   ) : renderDriveStream ? (
-                    <iframe
-                      src={sourceInfo.embedUrl}
-                      title={activeVideo.title}
-                      className="player-video drive-player-frame"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
+                    <>
+                      <iframe
+                        src={sourceInfo.embedUrl}
+                        title={activeVideo.title}
+                        className="player-video drive-player-frame"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                      <div
+                        className="player-iframe-interaction-catcher"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleTogglePlay();
+                          resetControlsTimeout();
+                        }}
+                      />
+                    </>
                   ) : (
                     <video
                       ref={videoRef}
@@ -1890,100 +2052,119 @@ export function App() {
                         </button>
                       </div>
 
-                  {/* Center Controls Overlay (10s Rewind, Big Play/Pause, 10s Forward) */}
-                  <div className="player-overlay-center" onClick={e => e.stopPropagation()}>
-                    <button
-                      className="player-overlay-btn center-skip-btn"
-                      onClick={() => {
-                        handleSkip(-10);
-                        resetControlsTimeout();
-                      }}
-                      title="Rewind 10s"
-                    >
-                      <RotateCcw size={22} />
-                      <span className="skip-sec-text">10s</span>
-                    </button>
+                      {/* Center Controls Overlay (10s Rewind, Big Play/Pause, 10s Forward) */}
+                      <div className="player-overlay-center" onClick={e => e.stopPropagation()}>
+                        <button
+                          className="player-overlay-btn center-skip-btn"
+                          onClick={() => {
+                            handleSkip(-10);
+                            resetControlsTimeout();
+                          }}
+                          title="Rewind 10s"
+                        >
+                          <RotateCcw size={22} />
+                          <span className="skip-sec-text">10s</span>
+                        </button>
 
-                    <button
-                      className="player-main-play-btn"
-                      onClick={() => {
-                        handleTogglePlay();
-                        resetControlsTimeout();
-                      }}
-                      title={isPlaying ? 'Pause' : 'Play'}
-                    >
-                      {isPlaying ? (
-                        <Pause size={28} fill="currentColor" />
-                      ) : (
-                        <Play size={28} fill="currentColor" style={{ marginLeft: 3 }} />
-                      )}
-                    </button>
+                        <button
+                          className="player-main-play-btn"
+                          onClick={() => {
+                            handleTogglePlay();
+                            resetControlsTimeout();
+                          }}
+                          title={isPlaying ? 'Pause' : 'Play'}
+                        >
+                          {isPlaying ? (
+                            <Pause size={28} fill="currentColor" />
+                          ) : (
+                            <Play size={28} fill="currentColor" style={{ marginLeft: 3 }} />
+                          )}
+                        </button>
 
-                    <button
-                      className="player-overlay-btn center-skip-btn"
-                      onClick={() => {
-                        handleSkip(10);
-                        resetControlsTimeout();
-                      }}
-                      title="Forward 10s"
-                    >
-                      <RotateCw size={22} />
-                      <span className="skip-sec-text">10s</span>
-                    </button>
-                  </div>
+                        <button
+                          className="player-overlay-btn center-skip-btn"
+                          onClick={() => {
+                            handleSkip(10);
+                            resetControlsTimeout();
+                          }}
+                          title="Forward 10s"
+                        >
+                          <RotateCw size={22} />
+                          <span className="skip-sec-text">10s</span>
+                        </button>
+                      </div>
 
-                  {/* Bottom Controls Overlay */}
-                  <div className="player-overlay-bottom" onClick={e => e.stopPropagation()}>
-                    {/* Touch Scrubber Seek Bar */}
-                    <div className="player-scrubber-wrap" onClick={handleSeek}>
-                      <div className="player-scrubber-track">
-                        <div className="player-scrubber-fill" style={{ width: `${progressPct}%` }}>
-                          <div className="player-scrubber-thumb" />
+                      {/* Bottom Controls Overlay */}
+                      <div className="player-overlay-bottom" onClick={e => e.stopPropagation()}>
+                        {/* Touch Scrubber Seek Bar */}
+                        <div className="player-scrubber-wrap" onClick={handleSeek}>
+                          <div className="player-scrubber-track">
+                            {isCurrentlyLive && duration > 0 && (
+                              <div
+                                className="player-scrubber-broadcasted"
+                                style={{ width: `${Math.min(100, (activePremStatus.liveOffsetSec / duration) * 100)}%` }}
+                              />
+                            )}
+                            <div className="player-scrubber-fill" style={{ width: `${progressPct}%` }}>
+                              <div className="player-scrubber-thumb" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="player-bottom-row">
+                          <div className="player-time-text">
+                            {isCurrentlyLive ? (
+                              <button
+                                className={`player-live-badge-btn ${Math.abs(currentTime - activePremStatus.liveOffsetSec) <= 3 ? 'live-synced' : 'live-behind'}`}
+                                onClick={handleJumpToLive}
+                                title="Click to sync to live broadcast"
+                              >
+                                <span className="live-dot-pulse" />
+                                {Math.abs(currentTime - activePremStatus.liveOffsetSec) <= 3 ? 'LIVE' : 'GO TO LIVE'}
+                              </button>
+                            ) : (
+                              <>
+                                <span>{fmt(currentTime)}</span>
+                                <span style={{ opacity: 0.6, margin: '0 4px' }}>/</span>
+                                <span style={{ opacity: 0.8 }}>{fmt(duration)}</span>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="player-bottom-actions">
+                            <button
+                              className="player-overlay-icon-btn"
+                              onClick={handleToggleMute}
+                              title={isMuted ? 'Unmute' : 'Mute'}
+                            >
+                              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                            </button>
+
+                            <button
+                              className="player-speed-badge-btn"
+                              onClick={handleCycleSpeed}
+                              title="Playback Speed"
+                            >
+                              {playbackSpeed}×
+                            </button>
+
+                            <button
+                              className="player-overlay-icon-btn"
+                              onClick={handleFullscreen}
+                              title="Fullscreen"
+                            >
+                              <Maximize size={18} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="player-bottom-row">
-                      <div className="player-time-text">
-                        <span>{fmt(currentTime)}</span>
-                        <span style={{ opacity: 0.6, margin: '0 4px' }}>/</span>
-                        <span style={{ opacity: 0.8 }}>{fmt(duration)}</span>
-                      </div>
-
-                      <div className="player-bottom-actions">
-                        <button
-                          className="player-overlay-icon-btn"
-                          onClick={handleToggleMute}
-                          title={isMuted ? 'Unmute' : 'Mute'}
-                        >
-                          {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                        </button>
-
-                        <button
-                          className="player-speed-badge-btn"
-                          onClick={handleCycleSpeed}
-                          title="Playback Speed"
-                        >
-                          {playbackSpeed}×
-                        </button>
-
-                        <button
-                          className="player-overlay-icon-btn"
-                          onClick={handleFullscreen}
-                          title="Fullscreen"
-                        >
-                          <Maximize size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
                     </>
                   )}
                 </div>
               );
             })()}
 
-            {/* Scrollable Lesson Details & Up Next Queue */}
+                        {/* Scrollable Lesson Details & Up Next Queue */}
             <div className="player-scroll-content">
               {/* Lesson Title & Main Metadata */}
               <div className="player-info-section">

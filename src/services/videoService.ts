@@ -114,6 +114,29 @@ export async function recordDeviceView(videoId: string, currentViews: number = 0
 
 // ─── Firestore parser ────────────────────────────────────────────────────────
 
+export function parseScheduledDate(raw: any): string | undefined {
+  if (!raw) return undefined;
+  try {
+    if (typeof raw?.toDate === 'function') {
+      return raw.toDate().toISOString();
+    }
+    if (typeof raw?.seconds === 'number') {
+      return new Date(raw.seconds * 1000).toISOString();
+    }
+    if (typeof raw === 'number') {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) return d.toISOString();
+    }
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (!trimmed) return undefined;
+      const d = new Date(trimmed);
+      if (!isNaN(d.getTime())) return d.toISOString();
+    }
+  } catch {}
+  return undefined;
+}
+
 export function parseCreatedDate(raw: any): string {
   if (!raw) return new Date(Date.now() - 3600000).toISOString();
   try {
@@ -144,6 +167,8 @@ function docToVideo(d: QueryDocumentSnapshot): Video {
   const data = d.data();
   const createdStr = parseCreatedDate(data.created_at);
   const updatedStr = parseCreatedDate(data.updated_at || data.created_at);
+  const scheduledStr = parseScheduledDate(data.scheduled_at);
+  const isLive = Boolean(data.is_live === true || data.is_live === 'true' || data.is_live === 1 || Boolean(scheduledStr));
 
   const cachedDurations = getCachedDurations();
   const rawDur = typeof data.duration === 'number' ? data.duration : (parseInt(data.duration, 10) || 0);
@@ -180,6 +205,8 @@ function docToVideo(d: QueryDocumentSnapshot): Video {
       : (data.material_url ? [{ title: data.material_title || 'Study Material', url: data.material_url }] : []),
     status: (data.status ?? 'published') as 'published' | 'draft',
     views: finalViews,
+    is_live: isLive,
+    scheduled_at: scheduledStr,
     created_at: createdStr,
     updated_at: updatedStr,
   };
@@ -452,7 +479,7 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   if (ytMatch && ytMatch[1]) {
     const id = ytMatch[1];
     let directStream: string | undefined = undefined;
-    if (id === 'QrTVeuloPQQ' || cleanUrl.toLowerCase().includes('logic')) {
+    if (id === 'QrTVeuloPQQ' || cleanUrl.includes('logic_gates.mp4')) {
       directStream = '/videos/logic_gates.mp4';
     }
     return {
