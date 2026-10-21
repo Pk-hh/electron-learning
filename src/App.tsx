@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Play, Pause, RotateCcw, RotateCw, Maximize, Volume2, VolumeX,
+  Play, Pause, RotateCcw, RotateCw, Maximize, Minimize, Volume2, VolumeX,
   Bookmark, Search, BookOpen, Home, Clock, TrendingUp,
   ChevronRight, ChevronLeft, X, SlidersHorizontal, RefreshCw,
   Calculator, Atom, FlaskConical, Dna, Globe2, Languages, Cpu, Music2,
@@ -191,6 +191,11 @@ export function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [fallbackToIframe, setFallbackToIframe] = useState<boolean>(false);
   const [currentClockMs, setCurrentClockMs] = useState<number>(Date.now());
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isScreenLandscape, setIsScreenLandscape] = useState(
+    typeof window !== 'undefined' ? window.innerWidth > window.innerHeight : false
+  );
+  const [isRotatedLandscape, setIsRotatedLandscape] = useState(true);
 
   // 1-second clock tick to drive live stream countdown and auto-start precisely when time arrives
   useEffect(() => {
@@ -310,22 +315,71 @@ export function App() {
     }
   };
 
-  // Cross-browser Fullscreen with Landscape Orientation Lock (supporting Mobile Chrome & Safari)
+  // Listen for device orientation and window resize changes to keep fullscreen landscape aligned
+  useEffect(() => {
+    const updateOrientation = () => {
+      setIsScreenLandscape(window.innerWidth > window.innerHeight);
+    };
+    updateOrientation();
+    window.addEventListener('resize', updateOrientation);
+    window.addEventListener('orientationchange', updateOrientation);
+    if (screen.orientation) {
+      screen.orientation.addEventListener('change', updateOrientation);
+    }
+    return () => {
+      window.removeEventListener('resize', updateOrientation);
+      window.removeEventListener('orientationchange', updateOrientation);
+      if (screen.orientation) {
+        screen.orientation.removeEventListener('change', updateOrientation);
+      }
+    };
+  }, []);
+
+  // Network online/offline status
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+
+  // Cross-browser Fullscreen with Landscape Orientation Lock & Responsive CSS Fallback
   const handleFullscreen = async () => {
     const el = playerContainerRef.current || videoRef.current;
     if (!el) return;
-    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
-      }
+
+    const isCurrentlyFullscreen = Boolean(
+      document.fullscreenElement ||
+      (document as any).webkitFullscreenElement ||
+      isFullscreen
+    );
+
+    if (isCurrentlyFullscreen) {
+      // Exit fullscreen
+      setIsFullscreen(false);
       try {
-        if (screen.orientation && (screen.orientation as any).unlock) {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen().catch(() => {});
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        }
+      } catch {}
+
+      try {
+        if (screen.orientation && typeof (screen.orientation as any).unlock === 'function') {
           (screen.orientation as any).unlock();
         }
       } catch {}
     } else {
+      // Enter fullscreen
+      setIsFullscreen(true);
+      setIsRotatedLandscape(true);
+
+      // 1. Attempt native element requestFullscreen
       try {
         if (el.requestFullscreen) {
           await el.requestFullscreen();
@@ -334,26 +388,35 @@ export function App() {
         } else if ((videoRef.current as any)?.webkitEnterFullscreen) {
           (videoRef.current as any).webkitEnterFullscreen();
         }
-        // Lock to landscape once in fullscreen mode (works on Android Chrome and modern mobile browsers)
-        if (screen.orientation && (screen.orientation as any).lock) {
-          await (screen.orientation as any).lock('landscape').catch(() => {});
+      } catch (err) {
+        // Fallback handled seamlessly by CSS landscape rotation
+      }
+
+      // 2. Lock to landscape orientation
+      try {
+        if (screen.orientation && typeof (screen.orientation as any).lock === 'function') {
+          await (screen.orientation as any).lock('landscape').catch(() => {
+            return (screen.orientation as any).lock?.('landscape-primary').catch(() => {});
+          });
         }
       } catch {
-        // Safe fallback if lock is not supported or permitted on current device
+        // Safe fallback handled by CSS rotation
       }
     }
   };
 
-  // network status
+  // Prevent background scroll while player is in fullscreen
   useEffect(() => {
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener('online', on);
-    window.addEventListener('offline', off);
-    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
-  }, []);
+    if (isFullscreen) {
+      const origOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = origOverflow;
+      };
+    }
+  }, [isFullscreen]);
 
-  // Handle exiting fullscreen via ESC key or browser gesture to unlock orientation
+  // Handle exiting fullscreen via ESC key, hardware back, or browser gesture to unlock orientation
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isFullscreenNow = Boolean(
@@ -363,11 +426,14 @@ export function App() {
         (document as any).msFullscreenElement
       );
       if (!isFullscreenNow) {
+        setIsFullscreen(false);
         try {
-          if (screen.orientation && (screen.orientation as any).unlock) {
+          if (screen.orientation && typeof (screen.orientation as any).unlock === 'function') {
             (screen.orientation as any).unlock();
           }
         } catch {}
+      } else {
+        setIsFullscreen(true);
       }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -610,7 +676,18 @@ export function App() {
   const closeVideo = () => {
     if (activeVideo && videoRef.current)
       saveLocalProgress(activeVideo.id, videoRef.current.currentTime, videoRef.current.duration || activeVideo.duration);
-    setActiveVideo(null); refreshLocalData();
+    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+    }
+    try {
+      if (screen.orientation && typeof (screen.orientation as any).unlock === 'function') {
+        (screen.orientation as any).unlock();
+      }
+    } catch {}
+    setIsFullscreen(false);
+    setActiveVideo(null);
+    refreshLocalData();
   };
 
   const handleTogglePlay = () => {
@@ -662,9 +739,14 @@ export function App() {
     }
   };
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const clientX = 'touches' in e && e.touches.length > 0 ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e && e.touches.length > 0 ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    const isRotated = rect.height > rect.width;
+    const pct = isRotated
+      ? Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+      : Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const total = duration || (videoRef.current ? videoRef.current.duration : 600);
     let target = pct * total;
 
@@ -1807,8 +1889,8 @@ export function App() {
 
       {/* ── Video Player Modal / Page (Cinema & Touch-Optimized) ── */}
       {activeVideo && (
-        <div className="player-modal-overlay" onClick={closeVideo}>
-          <div className="player-modal" onClick={e => e.stopPropagation()}>
+        <div className={`player-modal-overlay ${isFullscreen ? 'has-fullscreen' : ''}`} onClick={closeVideo}>
+          <div className={`player-modal ${isFullscreen ? 'has-fullscreen' : ''}`} onClick={e => e.stopPropagation()}>
 
             {/* Top Navigation Bar of the Player Modal */}
             <div className="player-modal-nav">
@@ -1886,7 +1968,11 @@ export function App() {
               return (
                 <div
                   ref={playerContainerRef}
-                  className={`player-video-wrapper ${showControls ? 'controls-visible' : 'controls-hidden'}`}
+                  className={`player-video-wrapper ${showControls ? 'controls-visible' : 'controls-hidden'} ${
+                    isFullscreen ? 'is-fullscreen' : ''
+                  } ${
+                    isFullscreen && !isScreenLandscape && isRotatedLandscape ? 'fullscreen-rotate-landscape' : ''
+                  }`}
                   onClick={() => {
                     if (isUpcomingPremiere) return;
                     if (isDirectVideo) {
@@ -1902,21 +1988,40 @@ export function App() {
                     <div className="live-premiere-countdown-screen">
                       {/* Dedicated topbar so students can exit or bookmark anytime */}
                       <div className="live-premiere-topbar">
-                        <button className="player-overlay-btn" onClick={closeVideo} title="Back">
+                        <button
+                          className="player-overlay-btn"
+                          onClick={() => {
+                            if (isFullscreen) {
+                              handleFullscreen();
+                            } else {
+                              closeVideo();
+                            }
+                          }}
+                          title={isFullscreen ? 'Exit Fullscreen' : 'Back'}
+                        >
                           <ChevronLeft size={22} />
                         </button>
                         <div className="live-premiere-top-title">{activeVideo.title}</div>
-                        <button
-                          className="player-overlay-btn"
-                          onClick={() => handleToggleBookmark(activeVideo.id)}
-                          title="Save lesson"
-                        >
-                          <Bookmark
-                            size={18}
-                            fill={bookmarked ? 'var(--brand)' : 'none'}
-                            color={bookmarked ? 'var(--brand)' : '#fff'}
-                          />
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button
+                            className="player-overlay-btn"
+                            onClick={handleFullscreen}
+                            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                          >
+                            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+                          </button>
+                          <button
+                            className="player-overlay-btn"
+                            onClick={() => handleToggleBookmark(activeVideo.id)}
+                            title="Save lesson"
+                          >
+                            <Bookmark
+                              size={18}
+                              fill={bookmarked ? 'var(--brand)' : 'none'}
+                              color={bookmarked ? 'var(--brand)' : '#fff'}
+                            />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="live-premiere-box">
@@ -2032,21 +2137,40 @@ export function App() {
                     <>
                       {/* Top Controls Overlay - always rendered for clean navigation */}
                       <div className="player-overlay-top" onClick={e => e.stopPropagation()}>
-                        <button className="player-overlay-btn" onClick={closeVideo} title="Back">
+                        <button
+                          className="player-overlay-btn"
+                          onClick={() => {
+                            if (isFullscreen) {
+                              handleFullscreen();
+                            } else {
+                              closeVideo();
+                            }
+                          }}
+                          title={isFullscreen ? 'Exit Fullscreen' : 'Back'}
+                        >
                           <ChevronLeft size={22} />
                         </button>
                         <div className="player-overlay-title">{activeVideo.title}</div>
-                        <button
-                          className="player-overlay-btn"
-                          onClick={() => handleToggleBookmark(activeVideo.id)}
-                          title="Save lesson"
-                        >
-                          <Bookmark
-                            size={18}
-                            fill={bookmarked ? 'var(--brand)' : 'none'}
-                            color={bookmarked ? 'var(--brand)' : '#fff'}
-                          />
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button
+                            className="player-overlay-btn"
+                            onClick={handleFullscreen}
+                            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                          >
+                            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+                          </button>
+                          <button
+                            className="player-overlay-btn"
+                            onClick={() => handleToggleBookmark(activeVideo.id)}
+                            title="Save lesson"
+                          >
+                            <Bookmark
+                              size={18}
+                              fill={bookmarked ? 'var(--brand)' : 'none'}
+                              color={bookmarked ? 'var(--brand)' : '#fff'}
+                            />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Custom Cinema Center & Bottom Controls for Direct Video Only */}
@@ -2145,12 +2269,25 @@ export function App() {
                                   {playbackSpeed}×
                                 </button>
 
+                                {isFullscreen && !isScreenLandscape && (
+                                  <button
+                                    className="player-overlay-icon-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setIsRotatedLandscape(prev => !prev);
+                                    }}
+                                    title="Rotate Orientation"
+                                  >
+                                    <RotateCw size={17} />
+                                  </button>
+                                )}
+
                                 <button
                                   className="player-overlay-icon-btn"
                                   onClick={handleFullscreen}
-                                  title="Fullscreen"
+                                  title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                                 >
-                                  <Maximize size={18} />
+                                  {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
                                 </button>
                               </div>
                             </div>

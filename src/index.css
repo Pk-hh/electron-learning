@@ -1019,6 +1019,118 @@ html, body {
   background: #000000;
 }
 
+/* ── Fullscreen & Mobile Landscape Rotation ── */
+.player-video-wrapper:fullscreen,
+.player-video-wrapper:-webkit-full-screen,
+.player-video-wrapper.is-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  width: 100dvw !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  background: #000000 !important;
+  z-index: 9999999 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  overflow: hidden !important;
+  touch-action: manipulation;
+}
+
+/* When the device is in portrait mode on mobile/tablet, rotate 90 degrees to landscape */
+.player-video-wrapper.is-fullscreen.fullscreen-rotate-landscape,
+.player-video-wrapper:fullscreen.fullscreen-rotate-landscape,
+.player-video-wrapper:-webkit-full-screen.fullscreen-rotate-landscape {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 100vh !important;
+  height: 100vw !important;
+  width: 100dvh !important;
+  height: 100dvw !important;
+  max-width: 100vh !important;
+  max-height: 100vw !important;
+  max-width: 100dvh !important;
+  max-height: 100dvw !important;
+  transform: translate(-50%, -50%) rotate(90deg) !important;
+  transform-origin: center center !important;
+  z-index: 9999999 !important;
+}
+
+/* Ensure video and iframes fill available fullscreen dimensions */
+.player-video-wrapper:fullscreen .player-video,
+.player-video-wrapper:-webkit-full-screen .player-video,
+.player-video-wrapper.is-fullscreen .player-video,
+.player-video-wrapper:fullscreen .youtube-player-frame,
+.player-video-wrapper:-webkit-full-screen .youtube-player-frame,
+.player-video-wrapper.is-fullscreen .youtube-player-frame,
+.player-video-wrapper:fullscreen .drive-player-frame,
+.player-video-wrapper:-webkit-full-screen .drive-player-frame,
+.player-video-wrapper.is-fullscreen .drive-player-frame {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* Fullscreen safe area padding for modern mobile devices (notch & navigation bars) */
+.player-video-wrapper.is-fullscreen .player-overlay-top,
+.player-video-wrapper:fullscreen .player-overlay-top,
+.player-video-wrapper:-webkit-full-screen .player-overlay-top {
+  padding-top: max(0.85rem, env(safe-area-inset-top));
+  padding-left: max(1.15rem, env(safe-area-inset-left));
+  padding-right: max(1.15rem, env(safe-area-inset-right));
+}
+
+.player-video-wrapper.is-fullscreen .player-overlay-bottom,
+.player-video-wrapper:fullscreen .player-overlay-bottom,
+.player-video-wrapper:-webkit-full-screen .player-overlay-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  padding-left: max(1.15rem, env(safe-area-inset-left));
+  padding-right: max(1.15rem, env(safe-area-inset-right));
+}
+
+/* Modal adjustments when player is in fullscreen */
+.player-modal-overlay.has-fullscreen,
+.player-modal-overlay:has(.is-fullscreen) {
+  padding: 0 !important;
+  background: #000000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.player-modal.has-fullscreen,
+.player-modal:has(.is-fullscreen) {
+  max-width: none !important;
+  max-height: none !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border: none !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  overflow: visible !important;
+  background: #000000 !important;
+}
+
+.player-modal.has-fullscreen .player-modal-nav,
+.player-modal.has-fullscreen .player-scroll-content,
+.player-modal:has(.is-fullscreen) .player-modal-nav,
+.player-modal:has(.is-fullscreen) .player-scroll-content {
+  display: none !important;
+}
+
 .player-toast {
   position: absolute;
   top: 55px;
