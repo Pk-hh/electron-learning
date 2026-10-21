@@ -26,6 +26,7 @@ import {
   saveDetectedDuration,
   probeVideoDuration,
   parseVideoSource,
+  resolveLocalVideoPath,
   getLocalNotes,
   saveLocalNote,
   updateLocalNote,
@@ -1944,20 +1945,34 @@ export function App() {
             {/* Video Container (Our Designed Cinema Player Only!) */}
             {(() => {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
+              const rawTitle = (activeVideo.title || '').toLowerCase();
               const rawUrl = (activeVideo.video_url || '').toLowerCase();
 
               // Resolve video source (direct stream or local MP4 cache)
               let videoSrc: string | null = null;
               if (sourceInfo.type === 'drive' && driveForceEmbed) {
                 videoSrc = null;
+              } else if (
+                rawUrl.includes('pn_junction_diode') ||
+                rawUrl.includes('1akjgei') ||
+                rawUrl.includes('1j3hce2') ||
+                rawTitle.includes('diode') ||
+                rawTitle.includes('junction') ||
+                rawTitle.includes('v-i') ||
+                rawTitle.includes('characteristic')
+              ) {
+                videoSrc = resolveLocalVideoPath('pn_junction_diode.mp4');
+              } else if (
+                rawUrl.includes('logic_gates') ||
+                rawUrl.includes('qrtveulopqq') ||
+                rawTitle.includes('logic') ||
+                rawTitle.includes('gate')
+              ) {
+                videoSrc = resolveLocalVideoPath('logic_gates.mp4');
               } else if (sourceInfo.directStreamUrl) {
                 videoSrc = sourceInfo.directStreamUrl;
               } else if (sourceInfo.type === 'direct') {
                 videoSrc = activeVideo.video_url;
-              } else if (rawUrl.includes('logic_gates.mp4')) {
-                videoSrc = './videos/logic_gates.mp4';
-              } else if (rawUrl.includes('pn_junction_diode.mp4')) {
-                videoSrc = './videos/pn_junction_diode.mp4';
               }
 
               // Premiere status calculations
@@ -2129,9 +2144,17 @@ export function App() {
                       onPause={() => setIsPlaying(false)}
                       autoPlay
                       onError={() => {
+                        if (
+                          videoRef.current &&
+                          !videoRef.current.src.includes('pn_junction_diode.mp4') &&
+                          (rawTitle.includes('diode') || rawUrl.includes('junction') || rawUrl.includes('1akjge'))
+                        ) {
+                          videoRef.current.src = resolveLocalVideoPath('pn_junction_diode.mp4');
+                          videoRef.current.play().catch(() => {});
+                          return;
+                        }
                         if (sourceInfo.type === 'drive') {
                           setDriveForceEmbed(true);
-                          showToast('Switched to Google Drive player');
                         } else {
                           setFallbackToIframe(true);
                         }

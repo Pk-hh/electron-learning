@@ -1010,8 +1010,7 @@ html, body {
   display: block;
 }
 
-.youtube-player-frame,
-.drive-player-frame {
+.youtube-player-frame {
   width: 100% !important;
   height: 100% !important;
   border: none !important;
@@ -1025,6 +1024,19 @@ html, body {
   position: relative;
   background: #000000;
   overflow: hidden;
+}
+
+/* Crop out external Drive top bar so video stays in our clean cinema format */
+.drive-player-frame {
+  position: absolute;
+  top: -54px;
+  left: 0;
+  width: 100% !important;
+  height: calc(100% + 54px) !important;
+  border: none !important;
+  display: block;
+  background: #000000;
+  touch-action: auto !important;
 }
 
 /* Ensure iframe players are never rotated via CSS transform because cross-origin iframes have broken touch coordinates when rotated */
@@ -1276,11 +1288,13 @@ html, body {
 .player-video-wrapper:fullscreen .drive-player-frame,
 .player-video-wrapper:-webkit-full-screen .drive-player-frame,
 .player-video-wrapper.is-fullscreen .drive-player-frame {
+  position: absolute !important;
+  top: -54px !important;
+  left: 0 !important;
   width: 100% !important;
-  height: 100% !important;
+  height: calc(100% + 54px) !important;
   max-width: 100% !important;
-  max-height: 100% !important;
-  object-fit: contain !important;
+  max-height: calc(100% + 54px) !important;
 }
 
 /* Fullscreen safe area padding for modern mobile devices (notch & navigation bars) */

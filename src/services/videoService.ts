@@ -456,6 +456,13 @@ export function probeVideoDuration(url: string): Promise<number> {
 
 // ─── Video Link & Source Parser ──────────────────────────────────────────────
 
+export function resolveLocalVideoPath(filename: string): string {
+  if (typeof window === 'undefined') return `./videos/${filename}`;
+  const p = window.location.pathname;
+  const base = p.endsWith('/') ? p : p.substring(0, p.lastIndexOf('/') + 1);
+  return `${base}videos/${filename}`;
+}
+
 export interface VideoSourceInfo {
   type: 'youtube' | 'vimeo' | 'drive' | 'direct';
   embedUrl: string;
@@ -479,8 +486,8 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   if (ytMatch && ytMatch[1]) {
     const id = ytMatch[1];
     let directStream: string | undefined = undefined;
-    if (id === 'QrTVeuloPQQ' || cleanUrl.includes('logic_gates.mp4')) {
-      directStream = '/videos/logic_gates.mp4';
+    if (id === 'QrTVeuloPQQ' || cleanUrl.includes('logic_gates.mp4') || cleanUrl.includes('logic')) {
+      directStream = resolveLocalVideoPath('logic_gates.mp4');
     }
     return {
       type: 'youtube',
@@ -519,7 +526,7 @@ export function parseVideoSource(url: string): VideoSourceInfo {
       return {
         type: 'drive',
         embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
-        directStreamUrl: `/videos/pn_junction_diode.mp4`,
+        directStreamUrl: resolveLocalVideoPath('pn_junction_diode.mp4'),
         originalUrl: cleanUrl,
         videoId: fileId,
         suggestedThumbnail: `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`,
@@ -543,10 +550,8 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   if (driveFileMatch && driveFileMatch[1]) {
     const fileId = driveFileMatch[1];
     let directStream: string | undefined = undefined;
-    if (fileId === '1akjgeI2iL4n_yyigsVDSBHiowBoWufbM') {
-      directStream = `/videos/pn_junction_diode.mp4`;
-    } else {
-      directStream = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    if (fileId === '1akjgeI2iL4n_yyigsVDSBHiowBoWufbM' || cleanUrl.includes('junction') || cleanUrl.includes('diode')) {
+      directStream = resolveLocalVideoPath('pn_junction_diode.mp4');
     }
     return {
       type: 'drive',
