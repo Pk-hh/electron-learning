@@ -1065,19 +1065,30 @@ html, body {
   background: none !important;
   pointer-events: none !important;
   padding: 0.65rem 0.85rem !important;
+  border: none !important;
 }
 
 .player-overlay-top.drive-overlay-top .player-overlay-btn {
   pointer-events: auto !important;
-  background: rgba(15, 23, 42, 0.75) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
 }
 
 .player-overlay-top.drive-overlay-top .player-overlay-title {
-  display: none !important;
+  display: block !important;
+  pointer-events: auto !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  padding: 0.35rem 0.85rem !important;
+  border-radius: 9999px !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 0.82rem !important;
+  max-width: 55% !important;
+  text-align: center;
 }
 
 /* ── Google Drive Companion Bar (Mobile & Responsive) ── */
@@ -1379,14 +1390,16 @@ html, body {
 .controls-hidden .player-overlay-top,
 .controls-hidden .player-overlay-center,
 .controls-hidden .player-overlay-bottom {
-  opacity: 0;
-  pointer-events: none;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-8px);
 }
 
 .controls-visible .player-overlay-top,
 .controls-visible .player-overlay-center,
 .controls-visible .player-overlay-bottom {
-  opacity: 1;
+  opacity: 1 !important;
+  transform: translateY(0);
 }
 
 .player-overlay-top {

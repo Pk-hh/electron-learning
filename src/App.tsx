@@ -214,16 +214,14 @@ export function App() {
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsTimeoutRef = useRef<any>(null);
 
-  // Auto-hide overlay controls after 3.5 seconds of playback
+  // Auto-hide overlay controls after 2.5 seconds of playback or user interaction
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    if (isPlaying) {
-      controlsTimeoutRef.current = setTimeout(() => {
-        setShowControls(false);
-      }, 3500);
-    }
-  }, [isPlaying]);
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 2500);
+  }, []);
 
   useEffect(() => {
     if (isPlaying) {
@@ -608,8 +606,15 @@ export function App() {
     setShowControls(true);
     setIsDescExpanded(false);
     setFallbackToIframe(false);
-    setDriveForceEmbed(false);
     setDriveReloadKey(0);
+
+    const sInfo = parseVideoSource(video.video_url);
+    if (sInfo.type === 'drive' && !sInfo.directStreamUrl) {
+      setDriveForceEmbed(true);
+      setIsPlaying(true);
+    } else {
+      setDriveForceEmbed(false);
+    }
 
     // Only autoplay if it is NOT an upcoming premiere waiting for countdown
     if (!premStatus.isUpcoming) {
@@ -619,6 +624,7 @@ export function App() {
           videoRef.current.play()
             .then(() => setIsPlaying(true))
             .catch(() => {
+              // Direct autoplay was blocked or needs user gesture
               setIsPlaying(false);
             });
         }
@@ -2001,13 +2007,14 @@ export function App() {
                   }`}
                   onClick={() => {
                     if (isUpcomingPremiere) return;
-                    if (isDirectVideo) {
-                      if (showControls) setShowControls(false);
-                      else resetControlsTimeout();
-                    }
+                    if (showControls) setShowControls(false);
+                    else resetControlsTimeout();
                   }}
                   onMouseMove={() => {
-                    if (!isUpcomingPremiere && isDirectVideo) resetControlsTimeout();
+                    if (!isUpcomingPremiere) resetControlsTimeout();
+                  }}
+                  onTouchStart={() => {
+                    if (!isUpcomingPremiere) resetControlsTimeout();
                   }}
                 >
                   {isUpcomingPremiere ? (
@@ -2216,9 +2223,11 @@ export function App() {
                         // 3. Only fallback to Drive embed if direct video streams cannot be played
                         if (sourceInfo.type === 'drive') {
                           setDriveForceEmbed(true);
+                          setIsPlaying(true);
                           showToast('Playing Google Drive stream');
                         } else {
                           setFallbackToIframe(true);
+                          setIsPlaying(true);
                         }
                       }}
                     />
@@ -2234,58 +2243,64 @@ export function App() {
                   {/* Controls Overlays */}
                   {!isUpcomingPremiere && (
                     <>
-                      {/* Top Controls Overlay - always rendered for clean navigation */}
-                      <div
-                        className={`player-overlay-top ${sourceInfo.type === 'drive' && !isDirectVideo ? 'drive-overlay-top' : ''}`}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <button
-                          className="player-overlay-btn"
-                          onClick={() => {
-                            if (isFullscreen) {
-                              handleFullscreen();
-                            } else {
-                              closeVideo();
-                            }
-                          }}
-                          title={isFullscreen ? 'Exit Fullscreen' : 'Back'}
+                      {/* Top Controls Overlay:
+                          - When isDirectVideo: rendered for custom player navigation
+                          - When !isDirectVideo (Drive / YouTube iframe): ONLY rendered when isFullscreen!
+                            In normal portrait mode, player-modal-nav above handles navigation cleanly, eliminating duplicate back buttons and header collisions.
+                      */}
+                      {(isDirectVideo || isFullscreen) && (
+                        <div
+                          className={`player-overlay-top ${sourceInfo.type === 'drive' && !isDirectVideo ? 'drive-overlay-top' : ''}`}
+                          onClick={e => e.stopPropagation()}
                         >
-                          <ChevronLeft size={22} />
-                        </button>
-                        <div className="player-overlay-title">{activeVideo.title}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {sourceInfo.type === 'drive' && !isDirectVideo && (
+                          <button
+                            className="player-overlay-btn"
+                            onClick={() => {
+                              if (isFullscreen) {
+                                handleFullscreen();
+                              } else {
+                                closeVideo();
+                              }
+                            }}
+                            title={isFullscreen ? 'Exit Fullscreen' : 'Back'}
+                          >
+                            <ChevronLeft size={22} />
+                          </button>
+                          <div className="player-overlay-title">{activeVideo.title}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {sourceInfo.type === 'drive' && (
+                              <button
+                                className="player-overlay-btn"
+                                onClick={() => {
+                                  setDriveReloadKey(k => k + 1);
+                                  showToast('Reloading Drive player...');
+                                }}
+                                title="Reload Player"
+                              >
+                                <RefreshCw size={17} />
+                              </button>
+                            )}
                             <button
                               className="player-overlay-btn"
-                              onClick={() => {
-                                setDriveReloadKey(k => k + 1);
-                                showToast('Reloading Drive player...');
-                              }}
-                              title="Reload Player"
+                              onClick={handleFullscreen}
+                              title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                             >
-                              <RefreshCw size={17} />
+                              {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
                             </button>
-                          )}
-                          <button
-                            className="player-overlay-btn"
-                            onClick={handleFullscreen}
-                            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-                          >
-                            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-                          </button>
-                          <button
-                            className="player-overlay-btn"
-                            onClick={() => handleToggleBookmark(activeVideo.id)}
-                            title="Save lesson"
-                          >
-                            <Bookmark
-                              size={18}
-                              fill={bookmarked ? 'var(--brand)' : 'none'}
-                              color={bookmarked ? 'var(--brand)' : '#fff'}
-                            />
-                          </button>
+                            <button
+                              className="player-overlay-btn"
+                              onClick={() => handleToggleBookmark(activeVideo.id)}
+                              title="Save lesson"
+                            >
+                              <Bookmark
+                                size={18}
+                                fill={bookmarked ? 'var(--brand)' : 'none'}
+                                color={bookmarked ? 'var(--brand)' : '#fff'}
+                              />
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Custom Cinema Center & Bottom Controls for Direct Video Only */}
                       {isDirectVideo && (
@@ -2420,23 +2435,22 @@ export function App() {
               {(() => {
                 const sInfo = parseVideoSource(activeVideo.video_url);
                 if (sInfo.type !== 'drive') return null;
-                const isCinemaActive = Boolean(sInfo.directStreamUrl && !driveForceEmbed);
+                const hasLocalDirect = Boolean(
+                  sInfo.directStreamUrl &&
+                  (sInfo.directStreamUrl.includes('.mp4') || sInfo.directStreamUrl.startsWith('/'))
+                );
 
                 return (
                   <div className="drive-companion-panel">
                     <div className="drive-companion-header">
                       <div className="drive-status-indicator">
                         <span className="drive-dot-pulse" />
-                        <span className="drive-platform-name">Google Drive Video</span>
-                        {isCinemaActive ? (
-                          <span className="drive-mode-tag cinema">⚡ Cinema Mode</span>
-                        ) : (
-                          <span className="drive-mode-tag embed">📁 Embed Mode</span>
-                        )}
+                        <span className="drive-platform-name">Google Drive Stream</span>
+                        <span className="drive-mode-tag embed">⚡ Ready</span>
                       </div>
 
                       <div className="drive-companion-btn-group">
-                        {sInfo.directStreamUrl && (
+                        {hasLocalDirect && (
                           <button
                             type="button"
                             className="drive-companion-btn mode-switch"
@@ -2452,20 +2466,18 @@ export function App() {
                           </button>
                         )}
 
-                        {!isCinemaActive && (
-                          <button
-                            type="button"
-                            className="drive-companion-btn reload"
-                            onClick={() => {
-                              setDriveReloadKey(k => k + 1);
-                              showToast('Reloading video player...');
-                            }}
-                            title="Reload Video Stream"
-                          >
-                            <RefreshCw size={14} />
-                            <span>Reload</span>
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="drive-companion-btn reload"
+                          onClick={() => {
+                            setDriveReloadKey(k => k + 1);
+                            showToast('Reloading video stream...');
+                          }}
+                          title="Reload Video Stream"
+                        >
+                          <RefreshCw size={14} />
+                          <span>Reload</span>
+                        </button>
 
                         {sInfo.videoId && (
                           <a
@@ -2481,15 +2493,6 @@ export function App() {
                         )}
                       </div>
                     </div>
-
-                    {!isCinemaActive && (
-                      <div className="drive-companion-hint">
-                        <Info size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-                        <span>
-                          <strong>Mobile tip:</strong> If Google Drive preview fails or shows an error in mobile browsers, tap <strong>Open in Drive App</strong> above for high-definition playback in the native Google Drive app.
-                        </span>
-                      </div>
-                    )}
                   </div>
                 );
               })()}
