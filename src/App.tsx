@@ -8,7 +8,7 @@ import {
   Eye, ListVideo, WifiOff, AlertTriangle, Info, LayoutGrid,
   Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
   FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Paperclip,
-  Radio, Activity, Code, Wrench, Sparkles,
+  Radio, Activity, Code, Wrench, Sparkles, HelpCircle,
 } from 'lucide-react';
 import type { Video, Subject, LessonNote } from './types';
 import {
@@ -273,6 +273,7 @@ export function App() {
   const [bookmarked, setBookmarked] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [fallbackToIframe, setFallbackToIframe] = useState<boolean>(false);
   const [driveForceEmbed, setDriveForceEmbed] = useState<boolean>(false);
@@ -947,6 +948,31 @@ export function App() {
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         handleFullscreen();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (videoRef.current) {
+          const newVol = Math.min(1, Math.round((videoRef.current.volume + 0.1) * 10) / 10);
+          videoRef.current.volume = newVol;
+          if (newVol > 0 && isMuted) {
+            setIsMuted(false);
+            videoRef.current.muted = false;
+          }
+          showToast(`Volume: ${Math.round(newVol * 100)}%`);
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (videoRef.current) {
+          const newVol = Math.max(0, Math.round((videoRef.current.volume - 0.1) * 10) / 10);
+          videoRef.current.volume = newVol;
+          if (newVol === 0) {
+            setIsMuted(true);
+            videoRef.current.muted = true;
+          }
+          showToast(`Volume: ${Math.round(newVol * 100)}%`);
+        }
+      } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        setShowShortcutsModal(prev => !prev);
       }
     };
 
@@ -997,6 +1023,11 @@ export function App() {
     acc[p.videoId] = p;
     return acc;
   }, {});
+  const getVidProgressPct = useCallback((vidId: string): number | undefined => {
+    const p = progressMap[vidId];
+    if (!p || p.duration <= 0) return undefined;
+    return Math.min(100, Math.round((p.position / p.duration) * 100));
+  }, [progressMap]);
   const filteredVideos = videos.filter(v => {
     // 1. Text search
     const q = searchQuery.toLowerCase().trim();
@@ -1288,8 +1319,14 @@ export function App() {
                 </div>
                 <div className="video-grid">
                   {popularVideos.map(v => (
-                    <VideoCard key={v.id} video={v} onPlay={() => openVideo(v)}
-                      onBookmark={() => handleToggleBookmark(v.id)} isBookmarked={bookmarkIds.includes(v.id)} />
+                    <VideoCard
+                      key={v.id}
+                      video={v}
+                      onPlay={() => openVideo(v)}
+                      onBookmark={() => handleToggleBookmark(v.id)}
+                      isBookmarked={bookmarkIds.includes(v.id)}
+                      progressPct={getVidProgressPct(v.id)}
+                    />
                   ))}
                 </div>
               </section>
@@ -1303,8 +1340,14 @@ export function App() {
                 </div>
                 <div className="video-grid">
                   {recentVideos.map(v => (
-                    <VideoCard key={v.id} video={v} onPlay={() => openVideo(v)}
-                      onBookmark={() => handleToggleBookmark(v.id)} isBookmarked={bookmarkIds.includes(v.id)} />
+                    <VideoCard
+                      key={v.id}
+                      video={v}
+                      onPlay={() => openVideo(v)}
+                      onBookmark={() => handleToggleBookmark(v.id)}
+                      isBookmarked={bookmarkIds.includes(v.id)}
+                      progressPct={getVidProgressPct(v.id)}
+                    />
                   ))}
                 </div>
               </section>
@@ -1514,6 +1557,36 @@ export function App() {
                 </div>
               )}
 
+              {/* Active Filter Indicators */}
+              {(selectedSubjectId || searchQuery.trim()) && (
+                <div className="active-filter-tags-row">
+                  <span className="filter-tags-label">Filtering by:</span>
+                  {selectedSubjectId && activeSubject && (
+                    <span className="active-filter-pill">
+                      <span>Subject: <strong>{activeSubject.name}</strong></span>
+                      <button type="button" onClick={() => setSelectedSubjectId(null)} title="Clear subject filter">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  )}
+                  {searchQuery.trim() && (
+                    <span className="active-filter-pill">
+                      <span>Search: <strong>"{searchQuery}"</strong></span>
+                      <button type="button" onClick={() => setSearchQuery('')} title="Clear search">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="clear-all-filters-btn"
+                    onClick={() => { setSelectedSubjectId(null); setSearchQuery(''); }}
+                  >
+                    Clear All
+                  </button>
+                </div>
+              )}
+
               {/* Lessons / Modules Display */}
               {filteredVideos.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-muted)' }}>
@@ -1556,6 +1629,7 @@ export function App() {
                                 onPlay={() => openVideo(v)}
                                 onBookmark={() => handleToggleBookmark(v.id)}
                                 isBookmarked={bookmarkIds.includes(v.id)}
+                                progressPct={getVidProgressPct(v.id)}
                               />
                             ))}
                           </div>
@@ -1819,6 +1893,7 @@ export function App() {
                           onPlay={() => openVideo(v)}
                           onBookmark={() => handleToggleBookmark(v.id)}
                           isBookmarked={bookmarkIds.includes(v.id)}
+                          progressPct={getVidProgressPct(v.id)}
                         />
                       ))}
                     </div>
@@ -1849,8 +1924,14 @@ export function App() {
             ) : (
               <div className="video-grid">
                 {bookmarkedVideos.map(v => (
-                  <VideoCard key={v.id} video={v} onPlay={() => openVideo(v)}
-                    onBookmark={() => handleToggleBookmark(v.id)} isBookmarked />
+                  <VideoCard
+                    key={v.id}
+                    video={v}
+                    onPlay={() => openVideo(v)}
+                    onBookmark={() => handleToggleBookmark(v.id)}
+                    isBookmarked
+                    progressPct={getVidProgressPct(v.id)}
+                  />
                 ))}
               </div>
             )}
@@ -2077,50 +2158,98 @@ export function App() {
         <div className={`player-modal-overlay ${isFullscreen ? 'has-fullscreen' : ''}`} onClick={closeVideo}>
           <div className={`player-modal ${isFullscreen ? 'has-fullscreen' : ''}`} onClick={e => e.stopPropagation()}>
 
-            {/* Top Navigation Bar of the Player Modal */}
-            <div className="player-modal-nav">
-              <button className="player-nav-btn" onClick={closeVideo} title="Back to lessons">
-                <ChevronLeft size={18} />
-                <span className="btn-label-desktop">Back</span>
-              </button>
+            {(() => {
+              const activeUnitName = activeVideo.unit || activeVideo.chapter;
+              const currentUnitVideos = activeUnitName
+                ? videos
+                    .filter(
+                      v =>
+                        v.subject_id === activeVideo.subject_id &&
+                        (v.unit === activeUnitName || v.chapter === activeUnitName)
+                    )
+                    .sort((a, b) => (a.unit_order || 1) - (b.unit_order || 1))
+                : [];
+              const currentVidIndex = currentUnitVideos.findIndex(v => v.id === activeVideo.id);
+              const prevLesson = currentVidIndex > 0 ? currentUnitVideos[currentVidIndex - 1] : null;
+              const nextLesson =
+                currentVidIndex >= 0 && currentVidIndex < currentUnitVideos.length - 1
+                  ? currentUnitVideos[currentVidIndex + 1]
+                  : null;
 
-              <div className="player-nav-title-group">
-                <span className="player-top-lesson-title">{activeVideo.title}</span>
-                {(() => {
-                  const sInfo = parseVideoSource(activeVideo.video_url);
-                  if (sInfo.type === 'youtube') {
-                    return <span className="player-nav-badge youtube">YouTube</span>;
-                  }
-                  if (sInfo.type === 'drive') {
-                    return <span className="player-nav-badge drive">Google Drive</span>;
-                  }
-                  return null;
-                })()}
-              </div>
+              return (
+                <div className="player-modal-nav">
+                  <button className="player-nav-btn" onClick={closeVideo} title="Back to lessons">
+                    <ChevronLeft size={18} />
+                    <span className="btn-label-desktop">Back</span>
+                  </button>
 
-              <div className="player-nav-actions">
-                <button
-                  className={`player-nav-btn bookmark-btn btn-label-desktop ${bookmarked ? 'bookmarked' : ''}`}
-                  onClick={() => handleToggleBookmark(activeVideo.id)}
-                  title={bookmarked ? 'Saved to bookmarks' : 'Bookmark lesson'}
-                >
-                  <Bookmark
-                    size={16}
-                    fill={bookmarked ? 'var(--brand)' : 'none'}
-                    color={bookmarked ? 'var(--brand)' : 'currentColor'}
-                  />
-                  <span>{bookmarked ? 'Saved' : 'Save'}</span>
-                </button>
-                <button
-                  className="player-nav-btn"
-                  onClick={closeVideo}
-                  title="Close player"
-                  style={{ padding: '0.45rem', borderRadius: '50%' }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
+                  <div className="player-nav-title-group">
+                    <span className="player-top-lesson-title">{activeVideo.title}</span>
+                    {(() => {
+                      const sInfo = parseVideoSource(activeVideo.video_url);
+                      if (sInfo.type === 'youtube') {
+                        return <span className="player-nav-badge youtube">YouTube</span>;
+                      }
+                      if (sInfo.type === 'drive') {
+                        return <span className="player-nav-badge drive">Google Drive</span>;
+                      }
+                      return null;
+                    })()}
+                  </div>
+
+                  <div className="player-nav-actions">
+                    {prevLesson && (
+                      <button
+                        className="player-nav-btn btn-label-desktop"
+                        onClick={() => openVideo(prevLesson)}
+                        title={`Previous: ${prevLesson.title}`}
+                      >
+                        <ChevronLeft size={15} />
+                        <span>Prev</span>
+                      </button>
+                    )}
+                    {nextLesson && (
+                      <button
+                        className="player-nav-btn player-nav-next-btn btn-label-desktop"
+                        onClick={() => openVideo(nextLesson)}
+                        title={`Next: ${nextLesson.title}`}
+                      >
+                        <span>Next</span>
+                        <ChevronRight size={15} />
+                      </button>
+                    )}
+                    <button
+                      className={`player-nav-btn bookmark-btn btn-label-desktop ${bookmarked ? 'bookmarked' : ''}`}
+                      onClick={() => handleToggleBookmark(activeVideo.id)}
+                      title={bookmarked ? 'Saved to bookmarks' : 'Bookmark lesson'}
+                    >
+                      <Bookmark
+                        size={16}
+                        fill={bookmarked ? 'var(--brand)' : 'none'}
+                        color={bookmarked ? 'var(--brand)' : 'currentColor'}
+                      />
+                      <span>{bookmarked ? 'Saved' : 'Save'}</span>
+                    </button>
+                    <button
+                      className="player-nav-btn"
+                      onClick={() => setShowShortcutsModal(true)}
+                      title="Keyboard Shortcuts (?)"
+                      style={{ padding: '0.45rem', borderRadius: '50%' }}
+                    >
+                      <HelpCircle size={17} />
+                    </button>
+                    <button
+                      className="player-nav-btn"
+                      onClick={closeVideo}
+                      title="Close player"
+                      style={{ padding: '0.45rem', borderRadius: '50%' }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Video Container (Our Designed Cinema Player Only!) */}
             {(() => {
@@ -3217,6 +3346,33 @@ export function App() {
                   </>
                 );
               })()}
+
+            {/* Keyboard Shortcuts Modal */}
+            {showShortcutsModal && (
+              <div className="shortcuts-modal-overlay" onClick={() => setShowShortcutsModal(false)}>
+                <div className="shortcuts-modal-card" onClick={e => e.stopPropagation()}>
+                  <div className="shortcuts-modal-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: '0.98rem' }}>
+                      <Sparkles size={18} color="var(--brand)" />
+                      <span>Keyboard Shortcuts</span>
+                    </div>
+                    <button className="icon-btn" onClick={() => setShowShortcutsModal(false)} style={{ padding: 4 }}>
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <div className="shortcuts-grid">
+                    <div className="shortcut-row"><span className="shortcut-key">Space / K</span><span>Play / Pause</span></div>
+                    <div className="shortcut-row"><span className="shortcut-key">← / J</span><span>Rewind 10 seconds</span></div>
+                    <div className="shortcut-row"><span className="shortcut-key">→ / L</span><span>Forward 10 seconds</span></div>
+                    <div className="shortcut-row"><span className="shortcut-key">↑ / ↓</span><span>Volume Up / Down</span></div>
+                    <div className="shortcut-row"><span className="shortcut-key">M</span><span>Mute / Unmute</span></div>
+                    <div className="shortcut-row"><span className="shortcut-key">F</span><span>Fullscreen toggle</span></div>
+                    <div className="shortcut-row"><span className="shortcut-key">?</span><span>Shortcuts Guide</span></div>
+                    <div className="shortcut-row"><span className="shortcut-key">Esc</span><span>Close Video</span></div>
+                  </div>
+                </div>
+              </div>
+            )}
             </div>
           </div>
         </div>
@@ -3443,11 +3599,15 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
         <span className="video-duration">
           {isCurrentlyLive ? 'STREAMING NOW' : isUpcoming ? new Date(scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : formatDuration(video.duration || 600)}
         </span>
-        {progressPct !== undefined && progressPct > 0 && (
+        {progressPct !== undefined && progressPct >= 90 ? (
+          <span className="video-card-watched-badge">
+            <Check size={11} strokeWidth={3} /> Watched
+          </span>
+        ) : progressPct !== undefined && progressPct > 0 ? (
           <div className="video-progress-bar">
             <div className="video-progress-fill" style={{ width: `${progressPct}%` }} />
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="video-info">
