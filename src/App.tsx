@@ -2254,34 +2254,15 @@ export function App() {
             {/* Video Container (Our Designed Cinema Player Only!) */}
             {(() => {
               const sourceInfo = parseVideoSource(activeVideo.video_url);
-              const rawTitle = (activeVideo.title || '').toLowerCase();
               const rawUrl = (activeVideo.video_url || '').toLowerCase();
 
               // Resolve video source (direct stream or local MP4 cache)
               let videoSrc: string | null = null;
               if (sourceInfo.type === 'drive' && driveForceEmbed) {
                 videoSrc = null;
-              } else if (
-                rawUrl.includes('pn_junction_diode') ||
-                rawUrl.includes('1akjgei') ||
-                rawUrl.includes('1j3hce2') ||
-                rawTitle.includes('diode') ||
-                rawTitle.includes('junction') ||
-                rawTitle.includes('v-i') ||
-                rawTitle.includes('characteristic') ||
-                rawTitle.includes('p-n') ||
-                rawTitle.includes('semiconductor') ||
-                rawTitle.includes('bias')
-              ) {
+              } else if (rawUrl.includes('pn_junction_diode.mp4')) {
                 videoSrc = resolveLocalVideoPath('pn_junction_diode.mp4');
-              } else if (
-                rawUrl.includes('logic_gates') ||
-                rawUrl.includes('qrtveulopqq') ||
-                rawTitle.includes('logic') ||
-                rawTitle.includes('gate') ||
-                rawTitle.includes('boolean') ||
-                rawTitle.includes('truth table')
-              ) {
+              } else if (rawUrl.includes('logic_gates.mp4')) {
                 videoSrc = resolveLocalVideoPath('logic_gates.mp4');
               } else if (sourceInfo.directStreamUrl) {
                 videoSrc = sourceInfo.directStreamUrl;
@@ -2306,7 +2287,7 @@ export function App() {
                   className={`player-video-wrapper ${!isDirectVideo ? 'has-iframe' : ''} ${showControls ? 'controls-visible' : 'controls-hidden'} ${
                     isFullscreen ? 'is-fullscreen' : ''
                   } ${
-                    isFullscreen && !isScreenLandscape && isRotatedLandscape && isDirectVideo ? 'fullscreen-rotate-landscape' : ''
+                    isFullscreen && !isScreenLandscape && isRotatedLandscape ? 'fullscreen-rotate-landscape' : ''
                   }`}
                   onClick={() => {
                     if (isUpcomingPremiere) return;
@@ -2459,78 +2440,16 @@ export function App() {
                       onPause={() => setIsPlaying(false)}
                       autoPlay
                       onError={() => {
-                        const vEl = videoRef.current;
-                        if (!vEl) return;
-                        const currentSrc = vEl.src || '';
-
-                        // 1. Retry diode/junction video with alternate local paths
-                        const isDiode =
-                          rawTitle.includes('diode') ||
-                          rawTitle.includes('junction') ||
-                          rawTitle.includes('v-i') ||
-                          rawTitle.includes('characteristic') ||
-                          rawTitle.includes('p-n') ||
-                          rawTitle.includes('semiconductor') ||
-                          rawTitle.includes('bias') ||
-                          rawUrl.includes('diode') ||
-                          rawUrl.includes('junction') ||
-                          rawUrl.includes('1akjge') ||
-                          rawUrl.includes('1j3hce');
-
-                        if (isDiode) {
-                          if (!currentSrc.includes('pn_junction_diode.mp4')) {
-                            vEl.src = resolveLocalVideoPath('pn_junction_diode.mp4');
-                            vEl.play().catch(() => {});
-                            return;
-                          }
-                          if (currentSrc.startsWith('http') && !currentSrc.includes('./videos')) {
-                            vEl.src = './videos/pn_junction_diode.mp4';
-                            vEl.play().catch(() => {});
-                            return;
-                          }
-                          if (!currentSrc.includes('/electron-learning/')) {
-                            vEl.src = `${window.location.origin}/electron-learning/videos/pn_junction_diode.mp4`;
-                            vEl.play().catch(() => {});
-                            return;
-                          }
-                        }
-
-                        // 2. Retry logic gates video with alternate local paths
-                        const isLogic =
-                          rawTitle.includes('logic') ||
-                          rawTitle.includes('gate') ||
-                          rawTitle.includes('boolean') ||
-                          rawTitle.includes('truth table') ||
-                          rawUrl.includes('logic') ||
-                          rawUrl.includes('gate') ||
-                          rawUrl.includes('qrtveulopqq');
-
-                        if (isLogic) {
-                          if (!currentSrc.includes('logic_gates.mp4')) {
-                            vEl.src = resolveLocalVideoPath('logic_gates.mp4');
-                            vEl.play().catch(() => {});
-                            return;
-                          }
-                          if (currentSrc.startsWith('http') && !currentSrc.includes('./videos')) {
-                            vEl.src = './videos/logic_gates.mp4';
-                            vEl.play().catch(() => {});
-                            return;
-                          }
-                          if (!currentSrc.includes('/electron-learning/')) {
-                            vEl.src = `${window.location.origin}/electron-learning/videos/logic_gates.mp4`;
-                            vEl.play().catch(() => {});
-                            return;
-                          }
-                        }
-
-                        // 3. Only fallback to Drive embed if direct video streams cannot be played
-                        if (sourceInfo.type === 'drive') {
+                        // If direct Drive video stream cannot load, gracefully switch to Drive player
+                        if (sourceInfo.type === 'drive' && !driveForceEmbed) {
                           setDriveForceEmbed(true);
                           setIsPlaying(true);
                           showToast('Playing Google Drive stream');
-                        } else {
+                        } else if (sourceInfo.type === 'youtube' && !fallbackToIframe) {
                           setFallbackToIframe(true);
                           setIsPlaying(true);
+                        } else {
+                          showToast('Video stream unavailable');
                         }
                       }}
                     />
@@ -2581,6 +2500,18 @@ export function App() {
                                 title="Reload Player"
                               >
                                 <RefreshCw size={17} />
+                              </button>
+                            )}
+                            {isFullscreen && !isScreenLandscape && (
+                              <button
+                                className="player-overlay-btn rotate-btn"
+                                onClick={() => {
+                                  setIsRotatedLandscape(prev => !prev);
+                                  showToast(isRotatedLandscape ? 'Portrait mode' : 'Landscape mode');
+                                }}
+                                title="Toggle Landscape / Portrait"
+                              >
+                                <RotateCw size={18} />
                               </button>
                             )}
                             <button

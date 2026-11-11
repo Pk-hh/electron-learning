@@ -176,9 +176,9 @@ function docToVideo(d: QueryDocumentSnapshot): Video {
   // If raw duration is 0 or unprobed, check cached duration.
   // For link/external videos, if not cached yet, default to 600 (10 min) so duration badge is never missing
   const isLinkOrYT = data.video_url?.startsWith('http') || (data.video_url && !data.video_url.startsWith('/videos/'));
-  const finalDur = (rawDur > 0 && rawDur !== 600)
+  const finalDur = rawDur > 0
     ? rawDur
-    : (cachedDurations[d.id] ?? (rawDur > 0 ? rawDur : (isLinkOrYT ? 600 : 0)));
+    : (cachedDurations[d.id] ?? (isLinkOrYT ? 600 : 0));
 
   // Views handling: use real database views or locally synced view count
   const firestoreViews = typeof data.views === 'number' ? data.views : (parseInt(data.views, 10) || 0);
@@ -512,7 +512,7 @@ export function parseVideoSource(url: string): VideoSourceInfo {
   if (ytMatch && ytMatch[1]) {
     const id = ytMatch[1];
     let directStream: string | undefined = undefined;
-    if (id === 'QrTVeuloPQQ' || cleanUrl.includes('logic_gates.mp4') || cleanUrl.includes('logic')) {
+    if (id === 'QrTVeuloPQQ' || cleanUrl.includes('logic_gates.mp4')) {
       directStream = resolveLocalVideoPath('logic_gates.mp4');
     }
     return {
@@ -579,14 +579,10 @@ export function parseVideoSource(url: string): VideoSourceInfo {
     const lowerUrl = cleanUrl.toLowerCase();
     if (
       fileId.toLowerCase() === '1akjgei2il4n_yyigsvdsbhiowbowufbm' ||
-      lowerUrl.includes('junction') ||
-      lowerUrl.includes('diode') ||
-      lowerUrl.includes('characteristic') ||
-      lowerUrl.includes('v-i') ||
-      lowerUrl.includes('p-n')
+      lowerUrl.includes('pn_junction_diode.mp4')
     ) {
       directStream = resolveLocalVideoPath('pn_junction_diode.mp4');
-    } else if (lowerUrl.includes('logic') || lowerUrl.includes('gate') || lowerUrl.includes('qrtveulopqq')) {
+    } else if (lowerUrl.includes('logic_gates.mp4')) {
       directStream = resolveLocalVideoPath('logic_gates.mp4');
     } else {
       directStream = `https://drive.google.com/uc?export=download&id=${fileId}`;
