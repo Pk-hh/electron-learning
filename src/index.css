@@ -3556,3 +3556,290 @@ html, body {
   z-index: 10;
   cursor: pointer;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   UPGRADED UI: SKELETON SHIMMER LOADING ANIMATIONS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #F1F5F9 0%,
+    #E2E8F0 25%,
+    #FFFFFF 50%,
+    #E2E8F0 75%,
+    #F1F5F9 100%
+  );
+  background-size: 250% 100%;
+  animation: skeletonShimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  border-radius: var(--radius-md);
+}
+
+.skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.skeleton-hero-banner {
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 2rem 2.2rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.skeleton-badge {
+  width: 120px;
+  height: 22px;
+  border-radius: var(--radius-full);
+}
+
+.skeleton-headline {
+  width: 50%;
+  max-width: 420px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.skeleton-subtext {
+  width: 75%;
+  max-width: 620px;
+  height: 16px;
+  border-radius: 6px;
+}
+
+.skeleton-actions-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.skeleton-action-btn {
+  width: 110px;
+  height: 36px;
+  border-radius: var(--radius-full);
+}
+
+.skeleton-chips-bar {
+  display: flex;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+}
+
+.skeleton-chip {
+  width: 130px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.skeleton-section-header {
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-video-card {
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 0;
+}
+
+.skeleton-body {
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 6px;
+}
+
+.skeleton-line-title {
+  width: 85%;
+  height: 18px;
+}
+
+.skeleton-line-meta {
+  width: 55%;
+  height: 13px;
+}
+
+.skeleton-line-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.skeleton-pill {
+  width: 80px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.skeleton-pill-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   UPGRADED UI: COURSE CURRICULUM SYLLABUS & MODULE ACCORDION
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.interactive-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.interactive-header:hover {
+  background: linear-gradient(90deg, #F1F5F9 0%, #FFFFFF 100%);
+}
+
+.module-accordion-chevron {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.interactive-header:hover .module-accordion-chevron {
+  background: #E2E8F0;
+  color: var(--brand);
+}
+
+.module-accordion-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.module-accordion-chevron.expanded {
+  transform: rotate(0deg);
+}
+
+.course-module-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.module-header-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 130px;
+}
+
+.module-progress-pct {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.module-progress-bar {
+  flex: 1;
+  height: 7px;
+  background: var(--border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.module-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand) 0%, #059669 100%);
+  border-radius: var(--radius-full);
+  transition: width 0.35s ease;
+}
+
+.course-module-completed-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.course-lesson-status-bubble {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.74rem;
+  font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+.course-lesson-status-bubble.completed {
+  background: var(--success);
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+}
+
+.course-lesson-status-bubble.uncompleted {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+
+/* Keyboard Shortcut Chip */
+.search-kbd-chip {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.12rem 0.4rem;
+  font-family: inherit;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* Motivation Highlight Chip */
+.home-stat-chip.highlight-chip {
+  background: #FFFBEB;
+  border-color: #FDE68A;
+  color: #B45309;
+}
+
+

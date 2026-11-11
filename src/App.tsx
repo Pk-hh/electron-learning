@@ -8,7 +8,7 @@ import {
   Eye, ListVideo, WifiOff, AlertTriangle, Info, LayoutGrid,
   Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
   FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Paperclip,
-  Radio, Activity, Code, Wrench,
+  Radio, Activity, Code, Wrench, Sparkles,
 } from 'lucide-react';
 import type { Video, Subject, LessonNote } from './types';
 import {
@@ -151,6 +151,88 @@ interface ProgressRecord {
   watchedAt: string;
 }
 
+// ── Skeleton Shimmer Loading Screen ───────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className="skeleton-video-card">
+      <div className="skeleton-thumb skeleton-shimmer" />
+      <div className="skeleton-body">
+        <div className="skeleton-line skeleton-line-title skeleton-shimmer" />
+        <div className="skeleton-line skeleton-line-meta skeleton-shimmer" />
+        <div className="skeleton-line-footer">
+          <div className="skeleton-pill skeleton-shimmer" />
+          <div className="skeleton-pill-sm skeleton-shimmer" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkeletonLoadingView({ activeTab }: { activeTab: string }) {
+  return (
+    <div className="skeleton-container tab-pane-content">
+      {/* Skeleton Hero Banner */}
+      <div className="skeleton-hero-banner">
+        <div className="skeleton-badge skeleton-shimmer" />
+        <div className="skeleton-headline skeleton-shimmer" />
+        <div className="skeleton-subtext skeleton-shimmer" />
+        <div className="skeleton-actions-row">
+          <div className="skeleton-action-btn skeleton-shimmer" />
+          <div className="skeleton-action-btn skeleton-shimmer" />
+        </div>
+      </div>
+
+      {/* Skeleton Subject Chips */}
+      <div className="skeleton-chips-bar">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="skeleton-chip skeleton-shimmer" />
+        ))}
+      </div>
+
+      {activeTab === 'library' ? (
+        <div className="course-module-container" style={{ marginTop: '0.5rem' }}>
+          {[1, 2].map(m => (
+            <div key={m} className="course-module-card">
+              <div className="course-module-header" style={{ padding: '1.25rem 1.4rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '55%' }}>
+                  <div className="skeleton-line skeleton-shimmer" style={{ width: '80px', height: '18px' }} />
+                  <div className="skeleton-line skeleton-shimmer" style={{ width: '220px', height: '22px' }} />
+                </div>
+                <div className="skeleton-pill skeleton-shimmer" style={{ width: '100px', height: '32px', borderRadius: '50px' }} />
+              </div>
+              <div className="course-lessons-list">
+                {[1, 2, 3].map(l => (
+                  <div key={l} className="course-lesson-item" style={{ cursor: 'default' }}>
+                    <div className="course-lesson-left">
+                      <div className="skeleton-shimmer" style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }} />
+                      <div className="skeleton-shimmer" style={{ width: 88, height: 52, borderRadius: 10, flexShrink: 0 }} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                        <div className="skeleton-line skeleton-shimmer" style={{ width: '60%', height: 15 }} />
+                        <div className="skeleton-line skeleton-shimmer" style={{ width: '30%', height: 12 }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="skeleton-section-header">
+            <div className="skeleton-line skeleton-shimmer" style={{ width: '160px', height: '20px' }} />
+          </div>
+          <div className="video-grid">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'library' | 'notes' | 'bookmarks'>('home');
@@ -165,6 +247,7 @@ export function App() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'newest' | 'title' | 'duration' | 'views'>('newest');
   const [libraryViewMode, setLibraryViewMode] = useState<'playlists' | 'lessons'>('playlists');
+  const [collapsedModules, setCollapsedModules] = useState<Record<string, boolean>>({});
 
   const [continueWatching, setContinueWatching] = useState<ProgressRecord[]>([]);
   const [bookmarkIds, setBookmarkIds] = useState<string[]>([]);
@@ -172,6 +255,7 @@ export function App() {
   // Notes state
   const [notes, setNotes] = useState<LessonNote[]>([]);
   const [playerTab, setPlayerTab] = useState<'overview' | 'playlist' | 'notes'>('overview');
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
@@ -870,6 +954,27 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeVideo, isPlaying, isMuted, currentTime, duration]);
 
+  // Global Shortcut: Focus Search on Ctrl+K or /
+  useEffect(() => {
+    const handleSearchShortcut = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        if (activeTab === 'home') setActiveTab('library');
+      } else if (e.key === '/' && !activeVideo) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        if (activeTab === 'home') setActiveTab('library');
+      }
+    };
+    window.addEventListener('keydown', handleSearchShortcut);
+    return () => window.removeEventListener('keydown', handleSearchShortcut);
+  }, [activeTab, activeVideo]);
+
   const handleToggleBookmark = (videoId: string) => {
     const isNow = toggleLocalBookmark(videoId);
     if (activeVideo?.id === videoId) setBookmarked(isNow);
@@ -1007,6 +1112,7 @@ export function App() {
               <div className="search-box desktop-search-box">
                 <Search size={15} color="var(--text-muted)" />
                 <input
+                  ref={searchInputRef}
                   className="search-input"
                   type="text"
                   placeholder="Search lessons, topics..."
@@ -1019,6 +1125,7 @@ export function App() {
                   }}
                   onKeyDown={e => e.key === 'Enter' && loadData()}
                 />
+                {!searchQuery && <span className="search-kbd-chip">Ctrl K</span>}
                 {searchQuery && (
                   <button
                     className="icon-btn"
@@ -1049,13 +1156,8 @@ export function App() {
       {/* ── Main ── */}
       <main style={{ flex: 1, padding: '2rem 2.5rem', maxWidth: 1400, margin: '0 auto', width: '100%' }}>
 
-        {/* Loading */}
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '6rem', color: 'var(--text-muted)' }}>
-            <RefreshCw size={36} style={{ animation: 'spin 1s linear infinite', color: 'var(--brand)', marginBottom: '1rem' }} />
-            <p style={{ fontWeight: 600 }}>Loading content...</p>
-          </div>
-        )}
+        {/* Loading Skeleton */}
+        {loading && <SkeletonLoadingView activeTab={activeTab} />}
 
         {/* Error */}
         {!loading && error && (
@@ -1090,6 +1192,18 @@ export function App() {
                     <ListVideo size={14} color="var(--brand)" />
                     <span><strong>{videos.length}</strong> Lessons</span>
                   </div>
+                  {(() => {
+                    const completedTotal = Object.values(progressMap).filter(
+                      p => p.duration > 0 && p.position / p.duration >= 0.9
+                    ).length;
+                    if (completedTotal === 0) return null;
+                    return (
+                      <div className="home-stat-chip highlight-chip">
+                        <Sparkles size={14} color="#D97706" />
+                        <span><strong>{completedTotal}</strong> {completedTotal === 1 ? 'Lesson' : 'Lessons'} Completed</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -1328,6 +1442,31 @@ export function App() {
                     </button>
                   </div>
 
+                  {libraryViewMode === 'playlists' && (
+                    <button
+                      type="button"
+                      className="course-toggle-btn"
+                      style={{ borderRadius: 'var(--radius-full)', border: '1px solid var(--border)', background: '#FFFFFF', padding: '0.45rem 0.85rem' }}
+                      onClick={() => {
+                        const isAnyCollapsed = Object.values(collapsedModules).some(Boolean);
+                        if (isAnyCollapsed) {
+                          setCollapsedModules({});
+                          showToast('All modules expanded');
+                        } else {
+                          const allKeys: Record<string, boolean> = {};
+                          const currentUnits = Array.from(new Set(filteredVideos.map(v => (v.unit || v.chapter || '').trim()).filter(Boolean)));
+                          currentUnits.forEach(u => { allKeys[u] = true; });
+                          setCollapsedModules(allKeys);
+                          showToast('All modules collapsed');
+                        }
+                      }}
+                      title="Expand or collapse all syllabus modules"
+                    >
+                      <Layers size={13} color="var(--brand)" />
+                      <span>{Object.values(collapsedModules).some(Boolean) ? 'Expand All' : 'Collapse All'}</span>
+                    </button>
+                  )}
+
                   {/* Sort Selector */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <SlidersHorizontal size={14} color="var(--text-muted)" />
@@ -1432,120 +1571,155 @@ export function App() {
                             const moduleMins = Math.round((moduleDurationSec % 3600) / 60);
                             const modDurationStr = moduleHours > 0 ? `${moduleHours}h ${moduleMins}m` : `${moduleMins}m`;
 
+                            const isModuleCollapsed = Boolean(collapsedModules[unitName]);
+                            const completedCount = sortedVids.filter(v => {
+                              const p = progressMap[v.id];
+                              return p && p.duration > 0 && (p.position / p.duration >= 0.9);
+                            }).length;
+                            const unitProgressPct = sortedVids.length > 0 ? Math.round((completedCount / sortedVids.length) * 100) : 0;
+
                             return (
                               <div key={unitName} className="course-module-card">
-                                {/* Module Header */}
-                                <div className="course-module-header">
+                                {/* Interactive Module Header */}
+                                <div
+                                  className="course-module-header interactive-header"
+                                  onClick={() => setCollapsedModules(prev => ({ ...prev, [unitName]: !prev[unitName] }))}
+                                >
                                   <div className="course-module-title-wrap">
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 3 }}>
-                                      <span className="course-module-pill">
-                                        MODULE {mIdx + 1}
-                                      </span>
-                                      <h3 className="course-module-title">
-                                        {unitName}
-                                      </h3>
+                                    <div className={`module-accordion-chevron ${isModuleCollapsed ? 'collapsed' : 'expanded'}`}>
+                                      <ChevronDown size={18} />
                                     </div>
-                                    <div className="course-module-meta">
-                                      <span>{sortedVids.length} {sortedVids.length === 1 ? 'Lesson' : 'Lessons'}</span>
-                                      <span>•</span>
-                                      <span>{modDurationStr} duration</span>
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 3 }}>
+                                        <span className="course-module-pill">
+                                          MODULE {mIdx + 1}
+                                        </span>
+                                        <h3 className="course-module-title">
+                                          {unitName}
+                                        </h3>
+                                      </div>
+                                      <div className="course-module-meta">
+                                        <span>{sortedVids.length} {sortedVids.length === 1 ? 'Lesson' : 'Lessons'}</span>
+                                        <span>•</span>
+                                        <span>{modDurationStr} duration</span>
+                                        {completedCount > 0 && (
+                                          <>
+                                            <span>•</span>
+                                            <span className="course-module-completed-stat">
+                                              <CheckCircle2 size={12} color="#059669" /> {completedCount}/{sortedVids.length} completed
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
 
-                                  <button
-                                    type="button"
-                                    className="course-module-btn-play"
-                                    onClick={() => openVideo(sortedVids[0])}
-                                  >
-                                    <Play size={13} fill="currentColor" /> Play Module
-                                  </button>
+                                  <div className="course-module-header-actions" onClick={e => e.stopPropagation()}>
+                                    <div className="module-header-progress-wrap">
+                                      <span className="module-progress-pct">{unitProgressPct}%</span>
+                                      <div className="module-progress-bar">
+                                        <div className="module-progress-fill" style={{ width: `${unitProgressPct}%` }} />
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      className="course-module-btn-play"
+                                      onClick={() => openVideo(sortedVids[0])}
+                                      title="Play module from start"
+                                    >
+                                      <Play size={13} fill="currentColor" /> Play Module
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {/* Structured Syllabus Lesson Rows */}
-                                <div className="course-lessons-list">
-                                  {sortedVids.map((v, lIdx) => {
-                                    const isBookmarked = bookmarkIds.includes(v.id);
-                                    const progress = progressMap[v.id];
-                                    const isCompleted = progress && progress.duration > 0 && (progress.position / progress.duration >= 0.9);
-                                    const hasMaterial = !!(v.material_url || (v.materials && v.materials.length > 0));
-                                    const materialCount = (v.materials && v.materials.length > 0) ? v.materials.length : (v.material_url ? 1 : 0);
+                                {!isModuleCollapsed && (
+                                  <div className="course-lessons-list">
+                                    {sortedVids.map((v, lIdx) => {
+                                      const isBookmarked = bookmarkIds.includes(v.id);
+                                      const progress = progressMap[v.id];
+                                      const isCompleted = progress && progress.duration > 0 && (progress.position / progress.duration >= 0.9);
+                                      const hasMaterial = !!(v.material_url || (v.materials && v.materials.length > 0));
+                                      const materialCount = (v.materials && v.materials.length > 0) ? v.materials.length : (v.material_url ? 1 : 0);
 
-                                    return (
-                                      <div
-                                        key={v.id}
-                                        className="course-lesson-item"
-                                        onClick={() => openVideo(v)}
-                                      >
-                                        <div className="course-lesson-left">
-                                          {/* Index Bubble or Completed check */}
-                                          <div className={`course-lesson-index-bubble ${isCompleted ? 'completed' : ''}`}>
-                                            {isCompleted ? <Check size={14} strokeWidth={3} /> : (v.unit_order || lIdx + 1)}
-                                          </div>
+                                      return (
+                                        <div
+                                          key={v.id}
+                                          className="course-lesson-item"
+                                          onClick={() => openVideo(v)}
+                                        >
+                                          <div className="course-lesson-left">
+                                            {/* Status bubble */}
+                                            <div className={`course-lesson-status-bubble ${isCompleted ? 'completed' : 'uncompleted'}`}>
+                                              {isCompleted ? <Check size={14} strokeWidth={3} /> : (v.unit_order || lIdx + 1)}
+                                            </div>
 
-                                          {/* Thumbnail with duration */}
-                                          <div className="course-lesson-thumb-box">
-                                            {v.thumbnail_url ? (
-                                              <img src={v.thumbnail_url} alt={v.title} className="course-lesson-thumb" />
-                                            ) : (
-                                              <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1e293b, #0f172a)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <Play size={18} color="rgba(255,255,255,0.7)" />
+                                            {/* Thumbnail with duration */}
+                                            <div className="course-lesson-thumb-box">
+                                              {v.thumbnail_url ? (
+                                                <img src={v.thumbnail_url} alt={v.title} className="course-lesson-thumb" />
+                                              ) : (
+                                                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1e293b, #0f172a)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                  <Play size={18} color="rgba(255,255,255,0.7)" />
+                                                </div>
+                                              )}
+                                              <div className="course-lesson-play-overlay">
+                                                <Play size={14} fill="#fff" color="#fff" />
                                               </div>
-                                            )}
-                                            <div className="course-lesson-play-overlay">
-                                              <Play size={14} fill="#fff" color="#fff" />
+                                            </div>
+
+                                            {/* Lesson details */}
+                                            <div className="course-lesson-details">
+                                              <h4 className="course-lesson-title">{v.title}</h4>
+                                              <div className="course-lesson-meta-row">
+                                                {v.is_live && (
+                                                  <span className={`live-stream-badge mini ${(!v.scheduled_at || new Date(v.scheduled_at).getTime() <= Date.now()) ? 'active' : 'scheduled'}`}>
+                                                    <span className="live-dot" />
+                                                    {(!v.scheduled_at || new Date(v.scheduled_at).getTime() <= Date.now()) ? 'LIVE' : 'PREMIERE'}
+                                                  </span>
+                                                )}
+                                                <span className="course-lesson-duration-badge">
+                                                  <Clock size={11} />
+                                                  {formatDuration(v.duration || 600)}
+                                                </span>
+                                                {isCompleted && (
+                                                  <span className="course-lesson-completed-tag">
+                                                    <CheckCircle2 size={11} /> Watched
+                                                  </span>
+                                                )}
+                                                {hasMaterial && (
+                                                  <span
+                                                    className="course-lesson-material-tag"
+                                                    onClick={e => {
+                                                      e.stopPropagation();
+                                                      openVideo(v);
+                                                    }}
+                                                    title="Study materials attached"
+                                                  >
+                                                    <Paperclip size={10} />
+                                                    {materialCount > 1 ? `${materialCount} Notes` : 'Notes / PDF'}
+                                                  </span>
+                                                )}
+                                              </div>
                                             </div>
                                           </div>
 
-                                          {/* Lesson details */}
-                                          <div className="course-lesson-details">
-                                            <h4 className="course-lesson-title">{v.title}</h4>
-                                            <div className="course-lesson-meta-row">
-                                              {v.is_live && (
-                                                <span className={`live-stream-badge mini ${(!v.scheduled_at || new Date(v.scheduled_at).getTime() <= Date.now()) ? 'active' : 'scheduled'}`}>
-                                                  <span className="live-dot" />
-                                                  {(!v.scheduled_at || new Date(v.scheduled_at).getTime() <= Date.now()) ? 'LIVE' : 'PREMIERE'}
-                                                </span>
-                                              )}
-                                              <span className="course-lesson-duration-badge">
-                                                <Clock size={11} />
-                                                {formatDuration(v.duration || 600)}
-                                              </span>
-                                              {isCompleted && (
-                                                <span className="course-lesson-completed-tag">
-                                                  <CheckCircle2 size={11} /> Watched
-                                                </span>
-                                              )}
-                                              {hasMaterial && (
-                                                <span
-                                                  className="course-lesson-material-tag"
-                                                  onClick={e => {
-                                                    e.stopPropagation();
-                                                    openVideo(v);
-                                                  }}
-                                                  title="Study materials attached"
-                                                >
-                                                  <Paperclip size={10} />
-                                                  {materialCount > 1 ? `${materialCount} Notes` : 'Notes / PDF'}
-                                                </span>
-                                              )}
-                                            </div>
+                                          <div className="course-lesson-right" onClick={e => e.stopPropagation()}>
+                                            <button
+                                              type="button"
+                                              className={`course-lesson-btn-action ${isBookmarked ? 'bookmarked' : ''}`}
+                                              onClick={() => handleToggleBookmark(v.id)}
+                                              title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}
+                                            >
+                                              <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
+                                            </button>
                                           </div>
                                         </div>
-
-                                        <div className="course-lesson-right" onClick={e => e.stopPropagation()}>
-                                          <button
-                                            type="button"
-                                            className={`course-lesson-btn-action ${isBookmarked ? 'bookmarked' : ''}`}
-                                            onClick={() => handleToggleBookmark(v.id)}
-                                            title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}
-                                          >
-                                            <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
