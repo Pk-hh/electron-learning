@@ -1230,7 +1230,7 @@ export function App() {
             {/* 1. Category Filter Pills (LearnTube Style) */}
             <div className="subject-chips-bar-wrap" style={{ margin: '0 0 0.5rem 0' }}>
               <div className="subject-chips-bar">
-                {['For You', 'Coding', 'Science', 'Creative Arts', 'AI & ML', 'Engineering', 'Free Certificate'].map(cat => (
+                {['For You', 'Coding', 'Science', 'Creative Arts', 'AI & ML', 'Engineering', 'Design'].map(cat => (
                   <button
                     key={cat}
                     className={`subject-chip ${activeCategory === cat ? 'active' : ''}`}
@@ -1253,7 +1253,7 @@ export function App() {
                     {cat === 'Creative Arts' && <PenTool size={14} />}
                     {cat === 'AI & ML' && <Cpu size={14} />}
                     {cat === 'Engineering' && <Zap size={14} />}
-                    {cat === 'Free Certificate' && <Award size={14} />}
+                    {cat === 'Design' && <LayoutGrid size={14} />}
                     <span>{cat}</span>
                   </button>
                 ))}
@@ -3747,12 +3747,6 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
     <div className={`video-card ${isCurrentlyLive ? 'is-live-card' : ''}`} onClick={onPlay}>
       <div className="video-thumb-wrap">
         <VideoThumbnail video={video} className="video-thumb" />
-
-        {/* Dual LearnTube Badges */}
-        <div className="card-badges-row">
-          <span className="badge-quiz"><Sparkles size={10} /> Interactive Quiz</span>
-          <span className="badge-cert"><GraduationCap size={10} /> Free Certificate</span>
-        </div>
 
         {isCurrentlyLive && (
           <span className="live-stream-badge active">
