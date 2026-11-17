@@ -9,6 +9,7 @@ import {
   Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
   FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Paperclip,
   Radio, Activity, Code, Wrench, Sparkles, HelpCircle,
+  Bell, User, MoreVertical, Award, Flame,
 } from 'lucide-react';
 import type { Video, Subject, LessonNote } from './types';
 import {
@@ -251,6 +252,8 @@ export function App() {
 
   const [continueWatching, setContinueWatching] = useState<ProgressRecord[]>([]);
   const [bookmarkIds, setBookmarkIds] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>('For You');
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
 
   // Notes state
   const [notes, setNotes] = useState<LessonNote[]>([]);
@@ -1093,23 +1096,20 @@ export function App() {
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
               <div className="brand-badge" onClick={() => { setActiveTab('home'); setSelectedSubjectId(null); }}>
-                <img
-                  src="/logo.png"
-                  alt="electrONLearning Logo"
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    objectFit: 'contain',
-                    background: '#fff',
-                    padding: 2,
-                    boxShadow: 'var(--shadow-sm)',
-                    border: '1px solid var(--border)',
-                  }}
-                />
-                <div>
-                  <div className="brand-title">electr<span>ON</span>Learning</div>
-                  <div className="brand-tagline">Learn Anytime. Learn Anywhere.</div>
+                <div className="learntube-logo-wrap">
+                  <div className="learntube-logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      {/* Play triangle background with Mortarboard Graduation Cap silhouette */}
+                      <path d="M5.5 4.8C5.5 3.9 6.5 3.3 7.3 3.8L19.2 10.7C20 11.2 20 12.3 19.2 12.8L7.3 19.7C6.5 20.2 5.5 19.6 5.5 18.7V4.8Z" fill="white" fillOpacity="0.95" />
+                      <path d="M12 7.2L7 9.8L12 12.4L17 9.8L12 7.2Z" fill="#0C1024" />
+                      <path d="M9.2 11.5V13.8C9.2 14.8 10.4 15.6 12 15.6C13.6 15.6 14.8 14.8 14.8 13.8V11.5L12 13L9.2 11.5Z" fill="#0C1024" />
+                      <path d="M16 10.2V13.5" stroke="#0C1024" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="brand-title">Learn<span>Tube</span></div>
+                    <div className="brand-tagline">electrON Learning • Premium Classes</div>
+                  </div>
                 </div>
               </div>
 
@@ -1123,7 +1123,7 @@ export function App() {
                 <button className={`nav-item ${activeTab === 'notes' ? 'active' : ''}`} onClick={() => { refreshLocalData(); setActiveTab('notes'); }}>
                   <FileText size={15} /> Notes
                   {notes.length > 0 && (
-                    <span style={{ background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontSize: '0.65rem', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+                    <span style={{ background: 'var(--brand)', color: '#070A18', borderRadius: '50%', fontSize: '0.65rem', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
                       {notes.length}
                     </span>
                   )}
@@ -1131,7 +1131,7 @@ export function App() {
                 <button className={`nav-item ${activeTab === 'bookmarks' ? 'active' : ''}`} onClick={() => { refreshLocalData(); setActiveTab('bookmarks'); }}>
                   <Bookmark size={15} /> Saved
                   {bookmarkIds.length > 0 && (
-                    <span style={{ background: 'var(--brand)', color: '#fff', borderRadius: '50%', fontSize: '0.65rem', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+                    <span style={{ background: 'var(--brand)', color: '#070A18', borderRadius: '50%', fontSize: '0.65rem', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
                       {bookmarkIds.length}
                     </span>
                   )}
@@ -1139,7 +1139,7 @@ export function App() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <div className="header-actions">
               <div className="search-box desktop-search-box">
                 <Search size={15} color="var(--text-muted)" />
                 <input
@@ -1169,15 +1169,35 @@ export function App() {
                 )}
               </div>
               <button
-                className="icon-btn mobile-search-btn"
+                className="header-icon-btn mobile-search-btn"
                 onClick={() => setMobileSearchOpen(true)}
                 title="Search"
                 aria-label="Search"
               >
-                <Search size={19} />
+                <Search size={18} />
               </button>
-              <button className="icon-btn" onClick={loadData} title="Refresh" style={{ padding: '0.5rem' }}>
-                <RefreshCw size={16} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+              <button
+                className="header-icon-btn"
+                onClick={() => showToast('🔔 Notification: 2 new Python and Quantum Physics courses available!')}
+                title="Notifications"
+                aria-label="Notifications"
+              >
+                <Bell size={18} />
+                <span className="notification-badge-dot" />
+              </button>
+              <div
+                className="user-profile-ring"
+                onClick={() => setShowProfileModal(true)}
+                title="Student Profile & Stats"
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+                  alt="Student Profile"
+                  className="user-profile-avatar"
+                />
+              </div>
+              <button className="header-icon-btn" onClick={loadData} title="Refresh catalog" style={{ width: 34, height: 34 }}>
+                <RefreshCw size={14} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
               </button>
             </div>
           </>
@@ -1205,39 +1225,141 @@ export function App() {
 
         {/* ── HOME ── */}
         {!loading && !error && activeTab === 'home' && (
-          <div key="home" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+          <div key="home" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-            {/* Welcoming Header (Clean, Authentic, Focused) */}
-            <div className="home-welcome-header">
-              <div className="home-welcome-content">
-                <h1 className="home-welcome-title">Master Your Engineering Concepts</h1>
-                <p className="home-welcome-sub">
-                  Structured video lectures, organized unit playlists, and progress tracking designed for focused study.
-                </p>
-                <div className="home-welcome-stats">
-                  <div className="home-stat-chip">
-                    <Layers size={14} color="var(--brand)" />
-                    <span><strong>{subjects.length}</strong> Disciplines</span>
-                  </div>
-                  <div className="home-stat-chip">
-                    <ListVideo size={14} color="var(--brand)" />
-                    <span><strong>{videos.length}</strong> Lessons</span>
-                  </div>
-                  {(() => {
-                    const completedTotal = Object.values(progressMap).filter(
-                      p => p.duration > 0 && p.position / p.duration >= 0.9
-                    ).length;
-                    if (completedTotal === 0) return null;
-                    return (
-                      <div className="home-stat-chip highlight-chip">
-                        <Sparkles size={14} color="#D97706" />
-                        <span><strong>{completedTotal}</strong> {completedTotal === 1 ? 'Lesson' : 'Lessons'} Completed</span>
-                      </div>
-                    );
-                  })()}
-                </div>
+            {/* 1. Category Filter Pills (LearnTube Style) */}
+            <div className="subject-chips-bar-wrap" style={{ margin: '0 0 0.5rem 0' }}>
+              <div className="subject-chips-bar">
+                {['For You', 'Coding', 'Science', 'Creative Arts', 'AI & ML', 'Engineering', 'Free Certificate'].map(cat => (
+                  <button
+                    key={cat}
+                    className={`subject-chip ${activeCategory === cat ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveCategory(cat);
+                      if (cat !== 'For You') {
+                        const foundSubject = subjects.find(s => s.name.toLowerCase().includes(cat.toLowerCase()));
+                        if (foundSubject) {
+                          setSelectedSubjectId(foundSubject.id);
+                          setActiveTab('library');
+                        }
+                      } else {
+                        setSelectedSubjectId(null);
+                      }
+                    }}
+                  >
+                    {cat === 'For You' && <Sparkles size={14} />}
+                    {cat === 'Coding' && <Code size={14} />}
+                    {cat === 'Science' && <Microscope size={14} />}
+                    {cat === 'Creative Arts' && <PenTool size={14} />}
+                    {cat === 'AI & ML' && <Cpu size={14} />}
+                    {cat === 'Engineering' && <Zap size={14} />}
+                    {cat === 'Free Certificate' && <Award size={14} />}
+                    <span>{cat}</span>
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* 2. LearnTube Hero Spotlight Card (Python Featured Lesson) */}
+            {(() => {
+              const heroVid = videos.find(v => v.title.toLowerCase().includes('python')) || videos[0] || null;
+              const heroDuration = heroVid ? formatDuration(heroVid.duration || 2712) : '45:12';
+              const heroViews = heroVid ? formatViewsCount(heroVid.views || 120000) : '120K views';
+              const isSaved = heroVid ? bookmarkIds.includes(heroVid.id) : false;
+
+              return (
+                <div className="learntube-hero-wrapper">
+                  <div
+                    className="learntube-hero-banner"
+                    onClick={() => heroVid ? openVideo(heroVid) : (videos[0] ? openVideo(videos[0]) : null)}
+                  >
+                    <div className="learntube-hero-bg-art" />
+                    <div className="learntube-hero-left">
+                      <div className="learntube-hero-badge-pill">
+                        <Code size={13} color="#00D2FF" />
+                        <span>Python & Code &lt;/&gt;</span>
+                      </div>
+                      <h2 className="learntube-hero-title-big">
+                        Introduction to Python:<br />Build 5 Projects
+                      </h2>
+                    </div>
+
+                    <div className="learntube-hero-center-play">
+                      <Play size={28} fill="white" style={{ marginLeft: 3 }} />
+                    </div>
+
+                    <img
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80"
+                      alt="Instructor"
+                      className="learntube-hero-instructor-img"
+                    />
+
+                    <div className="learntube-hero-duration-badge">
+                      <Code size={12} color="#00D2FF" />
+                      <span>CodeAcademy • {heroDuration}</span>
+                    </div>
+
+                    <div className="learntube-hero-progress-line">
+                      <div className="learntube-hero-progress-line-fill" style={{ width: '38%' }} />
+                    </div>
+                  </div>
+
+                  {/* Metadata Row Below Hero Card */}
+                  <div className="learntube-hero-meta-row">
+                    <div className="learntube-hero-title-row">
+                      <h3 className="learntube-hero-title-text">
+                        {heroVid ? heroVid.title : 'Python for Beginners: From Scratch to Hero! 🐍🚀'}
+                      </h3>
+                      <button className="icon-btn" title="More options" style={{ color: 'var(--text-muted)' }}>
+                        <MoreVertical size={18} />
+                      </button>
+                    </div>
+
+                    <div className="learntube-hero-creator-row">
+                      <div className="learntube-creator-info">
+                        <img
+                          src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80"
+                          alt="CodeAcademy with Sam"
+                          className="learntube-creator-avatar"
+                        />
+                        <div>
+                          <div className="learntube-creator-name">
+                            <span>CodeAcademy with Sam</span>
+                            <CheckCircle2 size={15} className="verified-blue-badge" fill="#00D2FF" color="#080C1B" />
+                          </div>
+                          <div className="learntube-creator-sub">{heroViews} • 2 weeks ago</div>
+                        </div>
+                      </div>
+
+                      <div className="learntube-hero-actions">
+                        <button
+                          className={`learntube-action-pill-btn ${isSaved ? 'active' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (heroVid) handleToggleBookmark(heroVid.id);
+                            else showToast('Lesson saved to bookmarks!');
+                          }}
+                        >
+                          <Bookmark size={14} fill={isSaved ? 'currentColor' : 'none'} />
+                          <span>{isSaved ? 'Saved' : 'Save'}</span>
+                        </button>
+                        <button
+                          className="learntube-action-pill-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard?.writeText?.(window.location.href);
+                            showToast('🔗 Lesson share link copied to clipboard!');
+                          }}
+                        >
+                          <Share2 size={14} />
+                          <span>Share</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Native Continue Learning Hero Card (Mobile-First 1-Tap Resume) */}
             {continueWatchingVideos.length > 0 && (() => {
@@ -3309,7 +3431,66 @@ export function App() {
         </div>
       )}
 
-      {/* ── Mobile Bottom Navigation Bar (4 Native Tabs: Home, Courses, Notes, Saved) ── */}
+      {/* ── Floating "Resume Learning" Mini-Player Dock (LearnTube Glassmorphism) ── */}
+      {(() => {
+        // If there's an ongoing video or a recent watch record, show it in the floating dock
+        const targetVideo = continueWatchingVideos.length > 0 
+          ? continueWatchingVideos[0].video 
+          : (videos[0] || null);
+        const targetProgress = continueWatchingVideos.length > 0 
+          ? continueWatchingVideos[0].progress 
+          : null;
+        const pct = targetProgress && targetProgress.duration > 0 
+          ? Math.min(100, Math.round((targetProgress.position / targetProgress.duration) * 100)) 
+          : 65;
+        const startSec = targetProgress ? targetProgress.position : 0;
+
+        if (!targetVideo) return null;
+
+        return (
+          <div 
+            className="floating-resume-dock"
+            onClick={() => openVideo(targetVideo, startSec)}
+            title="1-Tap Resume Learning"
+          >
+            <div className="resume-dock-icon">
+              <GraduationCap size={22} color="#FFFFFF" />
+            </div>
+
+            <div className="resume-dock-content">
+              <div className="resume-dock-tag">
+                <Clock size={11} color="#00D2FF" />
+                <span>Resume Learning:</span>
+              </div>
+              <div className="resume-dock-title">
+                {targetVideo.title}
+              </div>
+              <div className="resume-dock-bar-row">
+                <div className="resume-dock-bar">
+                  <div className="resume-dock-bar-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <span className="resume-dock-pct">{pct}%</span>
+              </div>
+              <div className="resume-dock-next">
+                Next Chapter: {targetVideo.chapter || targetVideo.unit || 'Essential Concepts'}
+              </div>
+            </div>
+
+            <button 
+              className="resume-dock-play-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                openVideo(targetVideo, startSec);
+              }}
+              aria-label="Resume learning playback"
+            >
+              <Play size={20} fill="white" style={{ marginLeft: 2 }} />
+            </button>
+          </div>
+        );
+      })()}
+
+      {/* ── Mobile Bottom Navigation Bar (5 LearnTube Tabs: Home, Courses, Explore, Downloads, Me) ── */}
       <nav className="mobile-bottom-nav">
         <button
           className={`mobile-nav-item ${activeTab === 'home' ? 'active' : ''}`}
@@ -3323,7 +3504,7 @@ export function App() {
           className={`mobile-nav-item ${activeTab === 'library' ? 'active' : ''}`}
           onClick={() => { setActiveTab('library'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         >
-          <Compass size={20} />
+          <GraduationCap size={20} />
           <span>Courses</span>
         </button>
 
@@ -3332,14 +3513,14 @@ export function App() {
           onClick={() => { refreshLocalData(); setActiveTab('notes'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         >
           <div style={{ position: 'relative', display: 'inline-flex' }}>
-            <FileText size={20} />
+            <Compass size={20} />
             {notes.length > 0 && (
               <span className="mobile-nav-badge">
                 {notes.length}
               </span>
             )}
           </div>
-          <span>Notes</span>
+          <span>Explore</span>
         </button>
 
         <button
@@ -3354,9 +3535,76 @@ export function App() {
               </span>
             )}
           </div>
-          <span>Saved</span>
+          <span>Downloads</span>
+        </button>
+
+        <button
+          className={`mobile-nav-item ${showProfileModal ? 'active' : ''}`}
+          onClick={() => setShowProfileModal(true)}
+        >
+          <User size={20} />
+          <span>Me</span>
         </button>
       </nav>
+
+      {/* ── Student Profile Modal (Me Screen) ── */}
+      {showProfileModal && (
+        <div className="learntube-me-modal" onClick={() => setShowProfileModal(false)}>
+          <div className="learntube-me-card" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <User size={20} color="#00D2FF" /> Student Profile
+              </h3>
+              <button className="icon-btn" onClick={() => setShowProfileModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="user-profile-ring" style={{ width: 56, height: 56 }}>
+                <img
+                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+                  alt="Student Profile"
+                  className="user-profile-avatar"
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#FFFFFF' }}>Alex Developer</div>
+                <div style={{ fontSize: '0.8rem', color: '#00D2FF', fontWeight: 600 }}>Pro Engineering Learner</div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>alex@learn.electron.io</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+              <div style={{ padding: '0.85rem', background: 'rgba(0, 210, 255, 0.08)', border: '1px solid rgba(0, 210, 255, 0.25)', borderRadius: 14 }}>
+                <div style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 700 }}>STUDY STREAK</div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Flame size={18} color="#F59E0B" /> 7 Days
+                </div>
+              </div>
+              <div style={{ padding: '0.85rem', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: 14 }}>
+                <div style={{ fontSize: '0.72rem', color: '#FBBF24', fontWeight: 700 }}>CERTIFICATES</div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Award size={18} color="#FBBF24" /> 3 Earned
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>ACTIVE BADGES</div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span className="badge-quiz"><Sparkles size={10} /> Python Pro</span>
+                <span className="badge-cert"><GraduationCap size={10} /> Quantum Physics 101</span>
+                <span className="badge-quiz"><Sparkles size={10} /> Figma UI/UX Master</span>
+              </div>
+            </div>
+
+            <button className="btn-primary" onClick={() => setShowProfileModal(false)} style={{ width: '100%', justifyContent: 'center' }}>
+              Continue Learning
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3500,6 +3748,12 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
       <div className="video-thumb-wrap">
         <VideoThumbnail video={video} className="video-thumb" />
 
+        {/* Dual LearnTube Badges */}
+        <div className="card-badges-row">
+          <span className="badge-quiz"><Sparkles size={10} /> Interactive Quiz</span>
+          <span className="badge-cert"><GraduationCap size={10} /> Free Certificate</span>
+        </div>
+
         {isCurrentlyLive && (
           <span className="live-stream-badge active">
             <span className="live-dot" /> LIVE
@@ -3570,7 +3824,7 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
                 fontWeight: 700,
                 color: 'var(--brand)',
                 background: 'var(--brand-light)',
-                border: '1px solid rgba(37, 99, 235, 0.2)',
+                border: '1px solid rgba(0, 210, 255, 0.25)',
                 padding: '0.15rem 0.5rem',
                 borderRadius: 6,
                 display: 'inline-flex',
@@ -3585,18 +3839,26 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
         </div>
         {video.description && <div className="video-desc">{video.description}</div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)' }}>
-          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Eye size={12} /> {formatViewsCount(video.views)}
-            {video.created_at && <span>• {formatTimeAgo(video.created_at)}</span>}
-          </span>
-          <button
-            className="icon-btn"
-            onClick={e => { e.stopPropagation(); onBookmark(); }}
-            style={{ padding: '0.35rem', color: isBookmarked ? 'var(--brand)' : undefined }}
-            title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}
-          >
-            <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span className="video-card-rating">
+              ★ 4.9 <span>({formatViewsCount(video.views || 4300)})</span>
+            </span>
+            {video.created_at && (
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                • {formatTimeAgo(video.created_at)}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <button
+              className="icon-btn"
+              onClick={e => { e.stopPropagation(); onBookmark(); }}
+              style={{ padding: '0.35rem', color: isBookmarked ? 'var(--brand)' : undefined }}
+              title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}
+            >
+              <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
+            </button>
+          </div>
         </div>
       </div>
     </div>
