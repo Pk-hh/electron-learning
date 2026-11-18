@@ -1514,7 +1514,7 @@ export function App() {
                       className="course-hero-btn-primary"
                       onClick={() => openVideo(firstLesson)}
                     >
-                      <Play size={16} fill="#fff" /> Start Course
+                      <Play size={16} fill="#091316" color="#091316" /> Start Course
                     </button>
                   )}
                   {selectedSubjectId && (
