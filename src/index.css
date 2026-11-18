@@ -3292,8 +3292,10 @@ html, body {
   border-bottom: none;
 }
 
-.course-lesson-item:hover {
-  background: #F8FAFC;
+.course-lesson-item:hover,
+.course-lesson-item:active,
+.course-lesson-item:focus {
+  background: rgba(0, 201, 167, 0.1) !important;
 }
 
 .course-lesson-left {
@@ -4068,9 +4070,9 @@ html, body {
 
 /* Motivation Highlight Chip */
 .home-stat-chip.highlight-chip {
-  background: #FFFBEB;
-  border-color: #FDE68A;
-  color: #B45309;
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #FBBF24;
 }
 
 /* ── Player Top Nav: Next Lesson Quick Jump ── */
