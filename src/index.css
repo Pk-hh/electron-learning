@@ -2356,10 +2356,10 @@ html, body {
   align-items: center;
   gap: 0.35rem;
   padding: 0.32rem 0.65rem;
-  background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
-  border: 1px solid rgba(249, 115, 22, 0.25);
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.35);
   border-radius: var(--radius-full);
-  color: #C2410C;
+  color: #FB923C;
   font-size: 0.76rem;
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(249, 115, 22, 0.08);
@@ -3816,11 +3816,11 @@ html, body {
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    #F1F5F9 0%,
-    #E2E8F0 25%,
-    #FFFFFF 50%,
-    #E2E8F0 75%,
-    #F1F5F9 100%
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(0, 201, 167, 0.12) 50%,
+    rgba(255, 255, 255, 0.08) 75%,
+    rgba(255, 255, 255, 0.04) 100%
   );
   background-size: 250% 100%;
   animation: skeletonShimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
@@ -3963,10 +3963,13 @@ html, body {
   cursor: pointer;
   user-select: none;
   transition: background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.interactive-header:hover {
-  background: linear-gradient(90deg, #F1F5F9 0%, #FFFFFF 100%);
+.interactive-header:hover,
+.interactive-header:active,
+.interactive-header:focus {
+  background: rgba(0, 201, 167, 0.08);
 }
 
 .module-accordion-chevron {
@@ -3979,13 +3982,15 @@ html, body {
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease, border-color 0.15s ease;
   flex-shrink: 0;
 }
 
-.interactive-header:hover .module-accordion-chevron {
-  background: #E2E8F0;
+.interactive-header:hover .module-accordion-chevron,
+.interactive-header:active .module-accordion-chevron {
+  background: rgba(0, 201, 167, 0.16);
   color: var(--brand);
+  border-color: rgba(0, 201, 167, 0.4);
 }
 
 .module-accordion-chevron.collapsed {
