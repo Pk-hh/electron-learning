@@ -3514,14 +3514,6 @@ export function App() {
           </div>
           <span>Saved</span>
         </button>
-
-        <button
-          className={`mobile-nav-item ${showProfileModal ? 'active' : ''}`}
-          onClick={() => setShowProfileModal(true)}
-        >
-          <User size={20} />
-          <span>Me</span>
-        </button>
       </nav>
 
       {/* ── Student Profile Modal (Me Screen) ── */}
