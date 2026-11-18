@@ -9,7 +9,7 @@ import {
   Share2, Zap, ChevronDown, ChevronUp, CheckCircle2, ExternalLink,
   FileText, Plus, Trash2, Edit3, Copy, Download, Check, Compass, Paperclip,
   Radio, Activity, Code, Wrench, Sparkles, HelpCircle,
-  Bell, User, MoreVertical, Award, Flame,
+  Bell, MoreVertical,
 } from 'lucide-react';
 import type { Video, Subject, LessonNote } from './types';
 import {
@@ -253,7 +253,6 @@ export function App() {
   const [continueWatching, setContinueWatching] = useState<ProgressRecord[]>([]);
   const [bookmarkIds, setBookmarkIds] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('For You');
-  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
 
   // Notes state
   const [notes, setNotes] = useState<LessonNote[]>([]);
@@ -1186,19 +1185,13 @@ export function App() {
                 <Bell size={18} />
                 <span className="notification-badge-dot" />
               </button>
-              <div
-                className="user-profile-ring"
-                onClick={() => setShowProfileModal(true)}
-                title="Student Profile & Stats"
+              <button
+                className="header-icon-btn"
+                onClick={loadData}
+                title="Refresh catalog"
+                aria-label="Refresh catalog"
               >
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-                  alt="Student Profile"
-                  className="user-profile-avatar"
-                />
-              </div>
-              <button className="header-icon-btn" onClick={loadData} title="Refresh catalog" style={{ width: 34, height: 34 }}>
-                <RefreshCw size={14} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+                <RefreshCw size={16} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
               </button>
             </div>
           </>
@@ -3511,65 +3504,6 @@ export function App() {
           <span>Saved</span>
         </button>
       </nav>
-
-      {/* ── Student Profile Modal (Me Screen) ── */}
-      {showProfileModal && (
-        <div className="learntube-me-modal" onClick={() => setShowProfileModal(false)}>
-          <div className="learntube-me-card" onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <User size={20} color="#00D2FF" /> Student Profile
-              </h3>
-              <button className="icon-btn" onClick={() => setShowProfileModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="user-profile-ring" style={{ width: 56, height: 56 }}>
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-                  alt="Student Profile"
-                  className="user-profile-avatar"
-                />
-              </div>
-              <div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#FFFFFF' }}>Alex Developer</div>
-                <div style={{ fontSize: '0.8rem', color: '#00D2FF', fontWeight: 600 }}>Pro Engineering Learner</div>
-                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>alex@learn.electron.io</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-              <div style={{ padding: '0.85rem', background: 'rgba(0, 210, 255, 0.08)', border: '1px solid rgba(0, 210, 255, 0.25)', borderRadius: 14 }}>
-                <div style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 700 }}>STUDY STREAK</div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Flame size={18} color="#F59E0B" /> 7 Days
-                </div>
-              </div>
-              <div style={{ padding: '0.85rem', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: 14 }}>
-                <div style={{ fontSize: '0.72rem', color: '#FBBF24', fontWeight: 700 }}>CERTIFICATES</div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Award size={18} color="#FBBF24" /> 3 Earned
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>ACTIVE BADGES</div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span className="badge-quiz"><Sparkles size={10} /> Python Pro</span>
-                <span className="badge-cert"><GraduationCap size={10} /> Quantum Physics 101</span>
-                <span className="badge-quiz"><Sparkles size={10} /> Figma UI/UX Master</span>
-              </div>
-            </div>
-
-            <button className="btn-primary" onClick={() => setShowProfileModal(false)} style={{ width: '100%', justifyContent: 'center' }}>
-              Continue Learning
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
