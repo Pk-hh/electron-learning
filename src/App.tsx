@@ -287,6 +287,7 @@ export function App() {
     typeof window !== 'undefined' ? window.innerWidth > window.innerHeight : false
   );
   const [isRotatedLandscape, setIsRotatedLandscape] = useState(true);
+  const [resumeDockDismissed, setResumeDockDismissed] = useState(false);
 
   // 1-second clock tick to drive live stream countdown and auto-start precisely when time arrives
   useEffect(() => {
@@ -1205,7 +1206,7 @@ export function App() {
       </nav>
 
       {/* ── Main ── */}
-      <main style={{ flex: 1, padding: '2rem 2.5rem', maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+      <main style={{ flex: 1, padding: '2rem 2.5rem 8.5rem 2.5rem', maxWidth: 1400, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
         {/* Loading Skeleton */}
         {loading && <SkeletonLoadingView activeTab={activeTab} />}
@@ -1227,10 +1228,10 @@ export function App() {
         {!loading && !error && activeTab === 'home' && (
           <div key="home" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-            {/* 1. Category Filter Pills (LearnTube Style) */}
+            {/* 1. Category Filter Pills (LearnTube Reference Style) */}
             <div className="subject-chips-bar-wrap" style={{ margin: '0 0 0.5rem 0' }}>
               <div className="subject-chips-bar">
-                {['For You', 'Coding', 'Science', 'Creative Arts', 'AI & ML', 'Engineering', 'Design'].map(cat => (
+                {['For You', 'Coding', 'Science', 'Creative Arts', 'AI & ML', 'Finance'].map(cat => (
                   <button
                     key={cat}
                     className={`subject-chip ${activeCategory === cat ? 'active' : ''}`}
@@ -1247,13 +1248,6 @@ export function App() {
                       }
                     }}
                   >
-                    {cat === 'For You' && <Sparkles size={14} />}
-                    {cat === 'Coding' && <Code size={14} />}
-                    {cat === 'Science' && <Microscope size={14} />}
-                    {cat === 'Creative Arts' && <PenTool size={14} />}
-                    {cat === 'AI & ML' && <Cpu size={14} />}
-                    {cat === 'Engineering' && <Zap size={14} />}
-                    {cat === 'Design' && <LayoutGrid size={14} />}
                     <span>{cat}</span>
                   </button>
                 ))}
@@ -1276,7 +1270,7 @@ export function App() {
                     <div className="learntube-hero-bg-art" />
                     <div className="learntube-hero-left">
                       <div className="learntube-hero-badge-pill">
-                        <Code size={13} color="#00D2FF" />
+                        <Code size={13} color="var(--brand)" />
                         <span>Python & Code &lt;/&gt;</span>
                       </div>
                       <h2 className="learntube-hero-title-big">
@@ -1289,18 +1283,18 @@ export function App() {
                     </div>
 
                     <img
-                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80"
+                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80"
                       alt="Instructor"
                       className="learntube-hero-instructor-img"
                     />
 
                     <div className="learntube-hero-duration-badge">
-                      <Code size={12} color="#00D2FF" />
+                      <Code size={12} color="#00C9A7" />
                       <span>CodeAcademy • {heroDuration}</span>
                     </div>
 
                     <div className="learntube-hero-progress-line">
-                      <div className="learntube-hero-progress-line-fill" style={{ width: '38%' }} />
+                      <div className="learntube-hero-progress-line-fill" style={{ width: '45%' }} />
                     </div>
                   </div>
 
@@ -1361,40 +1355,29 @@ export function App() {
               );
             })()}
 
-            {/* Native Continue Learning Hero Card (Mobile-First 1-Tap Resume) */}
-            {continueWatchingVideos.length > 0 && (() => {
-              const topCW = continueWatchingVideos[0];
-              const cwPct = topCW.progress.duration > 0
-                ? Math.min(100, Math.round((topCW.progress.position / topCW.progress.duration) * 100))
-                : 0;
-              return (
-                <div
-                  className="native-continue-card"
-                  onClick={() => openVideo(topCW.video, topCW.progress.position)}
-                >
-                  <div className="continue-card-thumb-wrap">
-                    <VideoThumbnail video={topCW.video} className="continue-card-thumb" />
-                    <div className="continue-card-play-icon">
-                      <Play size={18} fill="#fff" />
-                    </div>
-                  </div>
-                  <div className="continue-card-info">
-                    <div className="continue-card-tag">
-                      <Clock size={12} /> Continue Watching • {cwPct}%
-                    </div>
-                    <div className="continue-card-title">{topCW.video.title}</div>
-                    <div className="continue-progress-bar-wrap">
-                      <div className="continue-progress-bar-fill" style={{ width: `${cwPct}%` }} />
-                    </div>
-                  </div>
-                  <button className="continue-card-action-btn">
-                    <Play size={13} fill="currentColor" /> Resume
-                  </button>
+            {/* 3. 2-Column Grid of Lessons (Popular & Recommended) */}
+            {popularVideos.length > 0 && (
+              <section>
+                <div className="section-header">
+                  <h2 className="section-title"><TrendingUp size={18} color="var(--brand)" /> Popular Lessons</h2>
+                  <button className="section-link" onClick={() => setActiveTab('library')}>View All <ChevronRight size={14} /></button>
                 </div>
-              );
-            })()}
+                <div className="video-grid">
+                  {popularVideos.map(v => (
+                    <VideoCard
+                      key={v.id}
+                      video={v}
+                      onPlay={() => openVideo(v)}
+                      onBookmark={() => handleToggleBookmark(v.id)}
+                      isBookmarked={bookmarkIds.includes(v.id)}
+                      progressPct={getVidProgressPct(v.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-            {/* Browse Subjects */}
+            {/* 4. Browse Subjects */}
             {subjects.length > 0 && (
               <section>
                 <div className="section-header">
@@ -1432,29 +1415,7 @@ export function App() {
               </section>
             )}
 
-            {/* Popular */}
-            {popularVideos.length > 0 && (
-              <section>
-                <div className="section-header">
-                  <h2 className="section-title"><TrendingUp size={18} color="var(--brand)" /> Popular Lessons</h2>
-                  <button className="section-link" onClick={() => setActiveTab('library')}>View All <ChevronRight size={14} /></button>
-                </div>
-                <div className="video-grid">
-                  {popularVideos.map(v => (
-                    <VideoCard
-                      key={v.id}
-                      video={v}
-                      onPlay={() => openVideo(v)}
-                      onBookmark={() => handleToggleBookmark(v.id)}
-                      isBookmarked={bookmarkIds.includes(v.id)}
-                      progressPct={getVidProgressPct(v.id)}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Recently Added */}
+            {/* 5. Recently Added */}
             {recentVideos.length > 0 && (
               <section>
                 <div className="section-header">
@@ -1611,7 +1572,7 @@ export function App() {
                     <button
                       type="button"
                       className="course-toggle-btn"
-                      style={{ borderRadius: 'var(--radius-full)', border: '1px solid var(--border)', background: '#FFFFFF', padding: '0.45rem 0.85rem' }}
+                      style={{ borderRadius: 'var(--radius-full)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', padding: '0.45rem 0.85rem' }}
                       onClick={() => {
                         const isAnyCollapsed = Object.values(collapsedModules).some(Boolean);
                         if (isAnyCollapsed) {
@@ -2958,9 +2919,9 @@ export function App() {
                         title={`Study Material: ${activeVideo.material_title || 'Download Lecture Notes'}`}
                         style={{
                           textDecoration: 'none',
-                          background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                          background: 'rgba(0, 201, 167, 0.12)',
                           color: 'var(--brand)',
-                          border: '1.5px solid rgba(37, 99, 235, 0.25)',
+                          border: '1px solid rgba(0, 201, 167, 0.3)',
                           fontWeight: 700,
                         }}
                       >
@@ -3040,7 +3001,7 @@ export function App() {
                         {/* Fast note prompt card */}
                         <div
                           style={{
-                            background: '#FFFFFF',
+                            background: 'var(--bg-surface)',
                             border: '1px solid var(--border)',
                             borderRadius: 'var(--radius-lg)',
                             padding: '1rem',
@@ -3076,8 +3037,8 @@ export function App() {
                         {(activeVideo.material_url || (activeVideo.materials && activeVideo.materials.length > 0)) && (
                           <div
                             style={{
-                              background: '#FFFFFF',
-                              border: '1px solid rgba(37, 99, 235, 0.22)',
+                              background: 'var(--bg-surface)',
+                              border: '1px solid rgba(0, 201, 167, 0.22)',
                               borderRadius: 'var(--radius-lg)',
                               padding: '1.1rem',
                               display: 'flex',
@@ -3093,13 +3054,13 @@ export function App() {
                                   width: 44,
                                   height: 44,
                                   borderRadius: 12,
-                                  background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                                  background: 'rgba(0, 201, 167, 0.12)',
                                   color: 'var(--brand)',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   flexShrink: 0,
-                                  boxShadow: 'inset 0 1px 2px rgba(37, 99, 235, 0.1)',
+                                  border: '1px solid rgba(0, 201, 167, 0.25)',
                                 }}
                               >
                                 <Paperclip size={22} />
@@ -3182,7 +3143,7 @@ export function App() {
 
                         {/* Notes List */}
                         {currentVideoNotes.length === 0 ? (
-                          <div style={{ textAlign: 'center', padding: '2.5rem 1rem', background: '#FFFFFF', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border)' }}>
+                          <div style={{ textAlign: 'center', padding: '2.5rem 1rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border)' }}>
                             <FileText size={28} style={{ margin: '0 auto 0.5rem auto', color: 'var(--brand)', opacity: 0.7 }} />
                             <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>No notes for this lesson yet</div>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -3445,7 +3406,7 @@ export function App() {
           : 65;
         const startSec = targetProgress ? targetProgress.position : 0;
 
-        if (!targetVideo) return null;
+        if (!targetVideo || resumeDockDismissed) return null;
 
         return (
           <div 
@@ -3454,16 +3415,20 @@ export function App() {
             title="1-Tap Resume Learning"
           >
             <div className="resume-dock-icon">
-              <GraduationCap size={22} color="#FFFFFF" />
+              {/* Figma / Vibrant creative app icon */}
+              <svg width="24" height="24" viewBox="0 0 38 57" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 28.5C19 23.2533 23.2533 19 28.5 19C33.7467 19 38 23.2533 38 28.5C38 33.7467 33.7467 38 28.5 38C23.2533 38 19 33.7467 19 28.5Z" fill="#1ABCFE"/>
+                <path d="M0 47.5C0 42.2533 4.25329 38 9.5 38H19V47.5C19 52.7467 14.7467 57 9.5 57C4.25329 57 0 52.7467 0 47.5Z" fill="#0ACF83"/>
+                <path d="M19 0V19H28.5C33.7467 19 38 14.7467 38 9.5C38 4.25329 33.7467 0 28.5 0H19Z" fill="#FF7262"/>
+                <path d="M0 9.5C0 14.7467 4.25329 19 9.5 19H19V0H9.5C4.25329 0 0 4.25329 0 9.5Z" fill="#F24E1E"/>
+                <path d="M0 28.5C0 33.7467 4.25329 38 9.5 38H19V19H9.5C4.25329 19 0 23.2533 0 28.5Z" fill="#A259FF"/>
+              </svg>
             </div>
 
             <div className="resume-dock-content">
-              <div className="resume-dock-tag">
-                <Clock size={11} color="#00D2FF" />
-                <span>Resume Learning:</span>
-              </div>
+              <div className="resume-dock-tag">Resume Learning:</div>
               <div className="resume-dock-title">
-                {targetVideo.title}
+                {targetVideo.title || 'UI/UX Essentials'}
               </div>
               <div className="resume-dock-bar-row">
                 <div className="resume-dock-bar">
@@ -3472,7 +3437,7 @@ export function App() {
                 <span className="resume-dock-pct">{pct}%</span>
               </div>
               <div className="resume-dock-next">
-                Next Chapter: {targetVideo.chapter || targetVideo.unit || 'Essential Concepts'}
+                Next Chapter: <span style={{ color: '#E2F1F5', fontWeight: 600 }}>{targetVideo.chapter || targetVideo.unit || 'Typography'}</span>
               </div>
             </div>
 
@@ -3484,7 +3449,19 @@ export function App() {
               }}
               aria-label="Resume learning playback"
             >
-              <Play size={20} fill="white" style={{ marginLeft: 2 }} />
+              <Play size={20} fill="#091316" color="#091316" style={{ marginLeft: 2 }} />
+            </button>
+
+            <button
+              className="resume-dock-close-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setResumeDockDismissed(true);
+              }}
+              aria-label="Dismiss resume dock"
+              title="Close"
+            >
+              <X size={15} />
             </button>
           </div>
         );
@@ -3513,14 +3490,14 @@ export function App() {
           onClick={() => { refreshLocalData(); setActiveTab('notes'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         >
           <div style={{ position: 'relative', display: 'inline-flex' }}>
-            <Compass size={20} />
+            <FileText size={20} />
             {notes.length > 0 && (
               <span className="mobile-nav-badge">
                 {notes.length}
               </span>
             )}
           </div>
-          <span>Explore</span>
+          <span>Notes</span>
         </button>
 
         <button
@@ -3535,7 +3512,7 @@ export function App() {
               </span>
             )}
           </div>
-          <span>Downloads</span>
+          <span>Saved</span>
         </button>
 
         <button
@@ -3736,18 +3713,34 @@ interface VideoCardProps {
 }
 
 function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: VideoCardProps) {
-  const parsed = parseVideoSource(video.video_url);
   const isLiveStream = Boolean(video.is_live);
   const scheduledTime = video.scheduled_at ? new Date(video.scheduled_at).getTime() : 0;
   const now = Date.now();
   const isUpcoming = isLiveStream && scheduledTime > now;
   const isCurrentlyLive = isLiveStream && scheduledTime <= now;
+  const viewsText = formatViewsCount(video.views || 4300);
+  const durationText = isCurrentlyLive
+    ? 'LIVE'
+    : isUpcoming
+      ? new Date(scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : formatDuration(video.duration || 510);
 
   return (
     <div className={`video-card ${isCurrentlyLive ? 'is-live-card' : ''}`} onClick={onPlay}>
       <div className="video-thumb-wrap">
         <VideoThumbnail video={video} className="video-thumb" />
 
+        {/* Bottom Left: Views Badge */}
+        <span className="video-views-badge">
+          {viewsText}
+        </span>
+
+        {/* Bottom Right: Duration Badge */}
+        <span className="video-duration">
+          {durationText}
+        </span>
+
+        {/* Live or Premiere Badges if applicable */}
         {isCurrentlyLive && (
           <span className="live-stream-badge active">
             <span className="live-dot" /> LIVE
@@ -3759,25 +3752,10 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
           </span>
         )}
 
-        {!isLiveStream && parsed.type === 'youtube' && (
-          <span className="youtube-card-badge">
-            <Play size={10} fill="#EF4444" color="#EF4444" />
-            <span>YouTube</span>
-          </span>
-        )}
-        {!isLiveStream && parsed.type === 'drive' && (
-          <span className="youtube-card-badge">
-            <BookOpen size={11} color="#10B981" />
-            <span>Drive</span>
-          </span>
-        )}
-
         <div className="video-play-overlay">
-          <Play size={20} fill="currentColor" />
+          <Play size={22} fill="white" />
         </div>
-        <span className="video-duration">
-          {isCurrentlyLive ? 'STREAMING NOW' : isUpcoming ? new Date(scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : formatDuration(video.duration || 600)}
-        </span>
+
         {progressPct !== undefined && progressPct >= 90 ? (
           <span className="video-card-watched-badge">
             <Check size={11} strokeWidth={3} /> Watched
@@ -3790,69 +3768,42 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
       </div>
 
       <div className="video-info">
-        <div className="video-title">{video.title}</div>
-        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', margin: '0.4rem 0', flexWrap: 'wrap' }}>
-          {video.subject_name && <span className="subject-pill">{video.subject_name}</span>}
-          {(video.unit || video.chapter) && (
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                padding: '0.15rem 0.5rem',
-                borderRadius: 6,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <ListVideo size={11} color="var(--brand)" /> {video.unit || video.chapter}
-            </span>
-          )}
-          {(video.material_url || (video.materials && video.materials.length > 0)) && (
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                color: 'var(--brand)',
-                background: 'var(--brand-light)',
-                border: '1px solid rgba(0, 210, 255, 0.25)',
-                padding: '0.15rem 0.5rem',
-                borderRadius: 6,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-              title="Includes study material"
-            >
-              <Paperclip size={11} /> Material
-            </span>
-          )}
+        <div className="video-title" title={video.title}>{video.title}</div>
+
+        {/* Channel Row: Avatar + Name + More dots */}
+        <div className="video-channel-row">
+          <div className="video-channel-left">
+            <div className="video-channel-avatar">
+              {(video.subject_name || 'LT').substring(0, 2).toUpperCase()}
+            </div>
+            <span className="video-channel-name">{video.subject_name || 'LearnTube'}</span>
+          </div>
+          <button
+            className="icon-btn"
+            title="Options"
+            onClick={e => { e.stopPropagation(); }}
+            style={{ padding: '0.2rem', color: 'var(--text-muted)' }}
+          >
+            <MoreVertical size={14} />
+          </button>
         </div>
-        {video.description && <div className="video-desc">{video.description}</div>}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <span className="video-card-rating">
-              ★ 4.9 <span>({formatViewsCount(video.views || 4300)})</span>
-            </span>
-            {video.created_at && (
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                • {formatTimeAgo(video.created_at)}
-              </span>
-            )}
+
+        {/* Bottom Row: Gold Rating + Bookmark button */}
+        <div className="video-card-bottom-row">
+          <div className="video-card-rating">
+            <span style={{ color: '#FBBF24', marginRight: 3 }}>★</span>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>4.9</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>(12k)</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <button
-              className="icon-btn"
-              onClick={e => { e.stopPropagation(); onBookmark(); }}
-              style={{ padding: '0.35rem', color: isBookmarked ? 'var(--brand)' : undefined }}
-              title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}
-            >
-              <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
-            </button>
-          </div>
+
+          <button
+            className="icon-btn"
+            onClick={e => { e.stopPropagation(); onBookmark(); }}
+            style={{ padding: '0.25rem', color: isBookmarked ? 'var(--brand)' : 'var(--text-muted)' }}
+            title={isBookmarked ? 'Remove bookmark' : 'Bookmark lesson'}
+          >
+            <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
+          </button>
         </div>
       </div>
     </div>

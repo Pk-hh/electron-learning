@@ -435,6 +435,10 @@ export function formatTimeAgo(dateInput?: string | number | Date | null): string
 export function probeVideoDuration(url: string): Promise<number> {
   return new Promise(resolve => {
     if (!url) return resolve(0);
+    // YouTube and Google Drive links are embeds/pages, not raw media streams; skip probing via video tag
+    if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('drive.google.com')) {
+      return resolve(0);
+    }
     try {
       const v = document.createElement('video');
       v.preload = 'metadata';
