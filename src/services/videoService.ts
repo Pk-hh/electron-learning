@@ -205,6 +205,8 @@ function docToVideo(d: QueryDocumentSnapshot): Video {
       : (data.material_url ? [{ title: data.material_title || 'Study Material', url: data.material_url }] : []),
     status: (data.status ?? 'published') as 'published' | 'draft',
     views: finalViews,
+    instructor: data.instructor ?? data.author ?? '',
+    is_featured: Boolean(data.is_featured),
     is_live: isLive,
     scheduled_at: scheduledStr,
     created_at: createdStr,

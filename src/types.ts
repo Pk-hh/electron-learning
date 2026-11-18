@@ -33,6 +33,8 @@ export interface Video {
   duration: number;          // seconds
   status: 'draft' | 'published' | 'archived';
   views: number;
+  instructor?: string;
+  is_featured?: boolean;
   is_live?: boolean;         // Scheduled Premiere / Live Stream
   scheduled_at?: string;     // ISO timestamp when the live stream begins
   created_at: string;

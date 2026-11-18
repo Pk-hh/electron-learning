@@ -1179,7 +1179,7 @@ export function App() {
               </button>
               <button
                 className="header-icon-btn"
-                onClick={() => showToast('🔔 Notification: 2 new Python and Quantum Physics courses available!')}
+                onClick={() => showToast(videos.length > 0 ? `🔔 You have ${videos.length} published lessons available.` : '🔔 No new notifications.')}
                 title="Notifications"
                 aria-label="Notifications"
               >
@@ -1228,53 +1228,58 @@ export function App() {
         {!loading && !error && activeTab === 'home' && (
           <div key="home" className="tab-pane-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-            {/* 1. Category Filter Pills (LearnTube Reference Style) */}
+            {/* 1. Category Filter Pills (Dynamic from Admin Subjects) */}
             <div className="subject-chips-bar-wrap" style={{ margin: '0 0 0.5rem 0' }}>
               <div className="subject-chips-bar">
-                {['For You', 'Coding', 'Science', 'Creative Arts', 'AI & ML', 'Finance'].map(cat => (
+                <button
+                  className={`subject-chip ${!selectedSubjectId && activeCategory === 'For You' ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveCategory('For You');
+                    setSelectedSubjectId(null);
+                  }}
+                >
+                  <span>All Lessons</span>
+                </button>
+                {subjects.map(s => (
                   <button
-                    key={cat}
-                    className={`subject-chip ${activeCategory === cat ? 'active' : ''}`}
+                    key={s.id}
+                    className={`subject-chip ${selectedSubjectId === s.id ? 'active' : ''}`}
                     onClick={() => {
-                      setActiveCategory(cat);
-                      if (cat !== 'For You') {
-                        const foundSubject = subjects.find(s => s.name.toLowerCase().includes(cat.toLowerCase()));
-                        if (foundSubject) {
-                          setSelectedSubjectId(foundSubject.id);
-                          setActiveTab('library');
-                        }
-                      } else {
-                        setSelectedSubjectId(null);
-                      }
+                      setActiveCategory(s.name);
+                      setSelectedSubjectId(s.id);
+                      setActiveTab('library');
                     }}
                   >
-                    <span>{cat}</span>
+                    <span>{s.name}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* 2. LearnTube Hero Spotlight Card (Python Featured Lesson) */}
-            {(() => {
-              const heroVid = videos.find(v => v.title.toLowerCase().includes('python')) || videos[0] || null;
-              const heroDuration = heroVid ? formatDuration(heroVid.duration || 2712) : '45:12';
-              const heroViews = heroVid ? formatViewsCount(heroVid.views || 120000) : '120K views';
-              const isSaved = heroVid ? bookmarkIds.includes(heroVid.id) : false;
+            {/* 2. Hero Spotlight Card (100% Dynamic from Admin Database) */}
+            {videos.length > 0 && (() => {
+              const heroVid = videos.find(v => v.is_featured) || videos[0];
+              if (!heroVid) return null;
+              const heroDuration = formatDuration(heroVid.duration || 600);
+              const heroViews = formatViewsCount(heroVid.views || 0);
+              const isSaved = bookmarkIds.includes(heroVid.id);
+              const creatorName = heroVid.instructor || heroVid.subject_name || 'electrON Learning';
+              const subjectBadge = heroVid.subject_name || heroVid.unit || 'Featured Lesson';
 
               return (
                 <div className="learntube-hero-wrapper">
                   <div
                     className="learntube-hero-banner"
-                    onClick={() => heroVid ? openVideo(heroVid) : (videos[0] ? openVideo(videos[0]) : null)}
+                    onClick={() => openVideo(heroVid)}
                   >
                     <div className="learntube-hero-bg-art" />
                     <div className="learntube-hero-left">
                       <div className="learntube-hero-badge-pill">
-                        <Code size={13} color="var(--brand)" />
-                        <span>Python & Code &lt;/&gt;</span>
+                        <Sparkles size={13} color="var(--brand)" />
+                        <span>{subjectBadge}</span>
                       </div>
                       <h2 className="learntube-hero-title-big">
-                        Introduction to Python:<br />Build 5 Projects
+                        {heroVid.title}
                       </h2>
                     </div>
 
@@ -1282,15 +1287,13 @@ export function App() {
                       <Play size={28} fill="white" style={{ marginLeft: 3 }} />
                     </div>
 
-                    <img
-                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80"
-                      alt="Instructor"
-                      className="learntube-hero-instructor-img"
-                    />
+                    <div className="learntube-hero-thumb-side">
+                      <VideoThumbnail video={heroVid} className="learntube-hero-instructor-img" />
+                    </div>
 
                     <div className="learntube-hero-duration-badge">
-                      <Code size={12} color="#00C9A7" />
-                      <span>CodeAcademy • {heroDuration}</span>
+                      <Clock size={12} color="#00C9A7" />
+                      <span>{heroDuration}</span>
                     </div>
 
                     <div className="learntube-hero-progress-line">
@@ -1302,7 +1305,7 @@ export function App() {
                   <div className="learntube-hero-meta-row">
                     <div className="learntube-hero-title-row">
                       <h3 className="learntube-hero-title-text">
-                        {heroVid ? heroVid.title : 'Python for Beginners: From Scratch to Hero! 🐍🚀'}
+                        {heroVid.title}
                       </h3>
                       <button className="icon-btn" title="More options" style={{ color: 'var(--text-muted)' }}>
                         <MoreVertical size={18} />
@@ -1311,17 +1314,17 @@ export function App() {
 
                     <div className="learntube-hero-creator-row">
                       <div className="learntube-creator-info">
-                        <img
-                          src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80"
-                          alt="CodeAcademy with Sam"
-                          className="learntube-creator-avatar"
-                        />
+                        <div className="video-channel-avatar" style={{ width: 28, height: 28, fontSize: '0.75rem' }}>
+                          {creatorName.substring(0, 2).toUpperCase()}
+                        </div>
                         <div>
                           <div className="learntube-creator-name">
-                            <span>CodeAcademy with Sam</span>
+                            <span>{creatorName}</span>
                             <CheckCircle2 size={15} className="verified-blue-badge" fill="#00D2FF" color="#080C1B" />
                           </div>
-                          <div className="learntube-creator-sub">{heroViews} • 2 weeks ago</div>
+                          <div className="learntube-creator-sub">
+                            {heroViews} {heroVid.created_at ? `• ${formatTimeAgo(heroVid.created_at)}` : ''}
+                          </div>
                         </div>
                       </div>
 
@@ -1330,8 +1333,7 @@ export function App() {
                           className={`learntube-action-pill-btn ${isSaved ? 'active' : ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (heroVid) handleToggleBookmark(heroVid.id);
-                            else showToast('Lesson saved to bookmarks!');
+                            handleToggleBookmark(heroVid.id);
                           }}
                         >
                           <Bookmark size={14} fill={isSaved ? 'currentColor' : 'none'} />
@@ -3392,21 +3394,20 @@ export function App() {
         </div>
       )}
 
-      {/* ── Floating "Resume Learning" Mini-Player Dock (LearnTube Glassmorphism) ── */}
+      {/* ── Floating "Resume Learning" Mini-Player Dock (Dynamic from Watch History) ── */}
       {(() => {
-        // If there's an ongoing video or a recent watch record, show it in the floating dock
-        const targetVideo = continueWatchingVideos.length > 0 
-          ? continueWatchingVideos[0].video 
-          : (videos[0] || null);
-        const targetProgress = continueWatchingVideos.length > 0 
-          ? continueWatchingVideos[0].progress 
-          : null;
+        // ONLY show if the student actually has continue watching history
+        if (continueWatchingVideos.length === 0 || resumeDockDismissed) return null;
+
+        const topItem = continueWatchingVideos[0];
+        const targetVideo = topItem.video;
+        const targetProgress = topItem.progress;
         const pct = targetProgress && targetProgress.duration > 0 
           ? Math.min(100, Math.round((targetProgress.position / targetProgress.duration) * 100)) 
-          : 65;
+          : 0;
         const startSec = targetProgress ? targetProgress.position : 0;
 
-        if (!targetVideo || resumeDockDismissed) return null;
+        if (!targetVideo) return null;
 
         return (
           <div 
@@ -3415,20 +3416,13 @@ export function App() {
             title="1-Tap Resume Learning"
           >
             <div className="resume-dock-icon">
-              {/* Figma / Vibrant creative app icon */}
-              <svg width="24" height="24" viewBox="0 0 38 57" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 28.5C19 23.2533 23.2533 19 28.5 19C33.7467 19 38 23.2533 38 28.5C38 33.7467 33.7467 38 28.5 38C23.2533 38 19 33.7467 19 28.5Z" fill="#1ABCFE"/>
-                <path d="M0 47.5C0 42.2533 4.25329 38 9.5 38H19V47.5C19 52.7467 14.7467 57 9.5 57C4.25329 57 0 52.7467 0 47.5Z" fill="#0ACF83"/>
-                <path d="M19 0V19H28.5C33.7467 19 38 14.7467 38 9.5C38 4.25329 33.7467 0 28.5 0H19Z" fill="#FF7262"/>
-                <path d="M0 9.5C0 14.7467 4.25329 19 9.5 19H19V0H9.5C4.25329 0 0 4.25329 0 9.5Z" fill="#F24E1E"/>
-                <path d="M0 28.5C0 33.7467 4.25329 38 9.5 38H19V19H9.5C4.25329 19 0 23.2533 0 28.5Z" fill="#A259FF"/>
-              </svg>
+              <Play size={20} fill="#FFFFFF" color="#FFFFFF" style={{ marginLeft: 2 }} />
             </div>
 
             <div className="resume-dock-content">
               <div className="resume-dock-tag">Resume Learning:</div>
               <div className="resume-dock-title">
-                {targetVideo.title || 'UI/UX Essentials'}
+                {targetVideo.title}
               </div>
               <div className="resume-dock-bar-row">
                 <div className="resume-dock-bar">
@@ -3436,9 +3430,11 @@ export function App() {
                 </div>
                 <span className="resume-dock-pct">{pct}%</span>
               </div>
-              <div className="resume-dock-next">
-                Next Chapter: <span style={{ color: '#E2F1F5', fontWeight: 600 }}>{targetVideo.chapter || targetVideo.unit || 'Typography'}</span>
-              </div>
+              {(targetVideo.chapter || targetVideo.unit || targetVideo.subject_name) && (
+                <div className="resume-dock-next">
+                  Lesson: <span style={{ color: '#E2F1F5', fontWeight: 600 }}>{targetVideo.chapter || targetVideo.unit || targetVideo.subject_name}</span>
+                </div>
+              )}
             </div>
 
             <button 
@@ -3710,22 +3706,24 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
   const now = Date.now();
   const isUpcoming = isLiveStream && scheduledTime > now;
   const isCurrentlyLive = isLiveStream && scheduledTime <= now;
-  const viewsText = formatViewsCount(video.views || 4300);
+  const viewsText = video.views && video.views > 0 ? formatViewsCount(video.views) : '';
   const durationText = isCurrentlyLive
     ? 'LIVE'
     : isUpcoming
       ? new Date(scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : formatDuration(video.duration || 510);
+      : formatDuration(video.duration || 600);
 
   return (
     <div className={`video-card ${isCurrentlyLive ? 'is-live-card' : ''}`} onClick={onPlay}>
       <div className="video-thumb-wrap">
         <VideoThumbnail video={video} className="video-thumb" />
 
-        {/* Bottom Left: Views Badge */}
-        <span className="video-views-badge">
-          {viewsText}
-        </span>
+        {/* Bottom Left: Views Badge (only if views exist) */}
+        {viewsText ? (
+          <span className="video-views-badge">
+            {viewsText}
+          </span>
+        ) : null}
 
         {/* Bottom Right: Duration Badge */}
         <span className="video-duration">
@@ -3762,13 +3760,13 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
       <div className="video-info">
         <div className="video-title" title={video.title}>{video.title}</div>
 
-        {/* Channel Row: Avatar + Name + More dots */}
+        {/* Channel Row: Real Subject / Instructor from Admin */}
         <div className="video-channel-row">
           <div className="video-channel-left">
             <div className="video-channel-avatar">
-              {(video.subject_name || 'LT').substring(0, 2).toUpperCase()}
+              {(video.subject_name || 'EL').substring(0, 2).toUpperCase()}
             </div>
-            <span className="video-channel-name">{video.subject_name || 'LearnTube'}</span>
+            <span className="video-channel-name">{video.instructor || video.subject_name || 'electrON Learning'}</span>
           </div>
           <button
             className="icon-btn"
@@ -3780,12 +3778,19 @@ function VideoCard({ video, onPlay, onBookmark, isBookmarked, progressPct }: Vid
           </button>
         </div>
 
-        {/* Bottom Row: Gold Rating + Bookmark button */}
+        {/* Bottom Row: Real Meta from Admin + Bookmark button */}
         <div className="video-card-bottom-row">
           <div className="video-card-rating">
-            <span style={{ color: '#FBBF24', marginRight: 3 }}>★</span>
-            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>4.9</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>(12k)</span>
+            {video.created_at && (
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                {formatTimeAgo(video.created_at)}
+              </span>
+            )}
+            {video.unit && (
+              <span style={{ color: 'var(--brand)', fontSize: '0.72rem', fontWeight: 600, marginLeft: 4 }}>
+                • {video.unit}
+              </span>
+            )}
           </div>
 
           <button
