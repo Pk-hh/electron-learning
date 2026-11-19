@@ -1265,30 +1265,37 @@ export function App() {
                     className="learntube-hero-banner"
                     onClick={() => openVideo(heroVid)}
                   >
-                    <div className="learntube-hero-bg-art" />
-                    <div className="learntube-hero-left">
+                    {/* Full Featured Video Thumbnail */}
+                    <div className="learntube-hero-thumb-wrap">
+                      <VideoThumbnail video={heroVid} className="learntube-hero-main-thumb" />
+                      <div className="learntube-hero-overlay-gradient" />
+                    </div>
+
+                    {/* Top Subject / Category Pill */}
+                    <div className="learntube-hero-top-row">
                       <div className="learntube-hero-badge-pill">
                         <Sparkles size={13} color="var(--brand)" />
                         <span>{subjectBadge}</span>
                       </div>
-                      <h2 className="learntube-hero-title-big">
-                        {heroVid.title}
-                      </h2>
+                      {heroVid.is_live && (
+                        <div className="live-stream-badge mini active">
+                          <span className="live-dot" /> LIVE
+                        </div>
+                      )}
                     </div>
 
+                    {/* Luminous Center Play Button */}
                     <div className="learntube-hero-center-play">
                       <Play size={28} fill="white" style={{ marginLeft: 3 }} />
                     </div>
 
-                    <div className="learntube-hero-thumb-side">
-                      <VideoThumbnail video={heroVid} className="learntube-hero-instructor-img" />
-                    </div>
-
+                    {/* Duration Badge */}
                     <div className="learntube-hero-duration-badge">
                       <Clock size={12} color="#00C9A7" />
                       <span>{heroDuration}</span>
                     </div>
 
+                    {/* Bottom Progress Accent Line */}
                     <div className="learntube-hero-progress-line">
                       <div className="learntube-hero-progress-line-fill" style={{ width: '45%' }} />
                     </div>
@@ -1297,7 +1304,7 @@ export function App() {
                   {/* Metadata Row Below Hero Card */}
                   <div className="learntube-hero-meta-row">
                     <div className="learntube-hero-title-row">
-                      <h3 className="learntube-hero-title-text">
+                      <h3 className="learntube-hero-title-text" onClick={() => openVideo(heroVid)}>
                         {heroVid.title}
                       </h3>
                       <button className="icon-btn" title="More options" style={{ color: 'var(--text-muted)' }}>
@@ -1307,13 +1314,13 @@ export function App() {
 
                     <div className="learntube-hero-creator-row">
                       <div className="learntube-creator-info">
-                        <div className="video-channel-avatar" style={{ width: 28, height: 28, fontSize: '0.75rem' }}>
+                        <div className="video-channel-avatar" style={{ width: 32, height: 32, fontSize: '0.8rem' }}>
                           {creatorName.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <div className="learntube-creator-name">
                             <span>{creatorName}</span>
-                            <CheckCircle2 size={15} className="verified-blue-badge" fill="#00D2FF" color="#080C1B" />
+                            <CheckCircle2 size={14} fill="#00C9A7" color="#091316" />
                           </div>
                           <div className="learntube-creator-sub">
                             {heroViews} {heroVid.created_at ? `• ${formatTimeAgo(heroVid.created_at)}` : ''}
@@ -2317,6 +2324,14 @@ export function App() {
                       <HelpCircle size={17} />
                     </button>
                     <button
+                      className="player-nav-btn fullscreen-nav-btn"
+                      onClick={handleFullscreen}
+                      title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Landscape'}
+                      style={{ padding: '0.45rem', borderRadius: '50%' }}
+                    >
+                      {isFullscreen ? <Minimize size={17} /> : <Maximize size={17} />}
+                    </button>
+                    <button
                       className="player-nav-btn"
                       onClick={closeVideo}
                       title="Close player"
@@ -2469,7 +2484,7 @@ export function App() {
                       src={`https://www.youtube-nocookie.com/embed/${sourceInfo.videoId}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1${initialSeekRef.current > 0 ? `&start=${Math.floor(initialSeekRef.current)}` : ''}`}
                       title={activeVideo.title}
                       className="player-video youtube-player-frame"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                       allowFullScreen
                     />
                   ) : renderDriveStream ? (
@@ -2844,6 +2859,15 @@ export function App() {
 
                 return (
                   <div className="player-action-bar">
+                    <button
+                      className="player-action-item fullscreen-action"
+                      onClick={handleFullscreen}
+                      title="Fullscreen Landscape Mode"
+                    >
+                      <Maximize size={17} color="var(--brand)" />
+                      <span>Fullscreen</span>
+                    </button>
+
                     <button
                       className={`player-action-item ${bookmarked ? 'active' : ''}`}
                       onClick={() => handleToggleBookmark(activeVideo.id)}

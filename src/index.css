@@ -4236,19 +4236,15 @@ html, body {
 .learntube-hero-banner {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 8.6;
-  min-height: 230px;
-  max-height: 400px;
+  aspect-ratio: 16 / 9;
   border-radius: var(--radius-xl);
   overflow: hidden;
-  background: linear-gradient(135deg, #0B191D 0%, #12282E 45%, #0E2025 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(0, 201, 167, 0.28);
   box-shadow: 0 18px 48px -6px rgba(0, 0, 0, 0.75), 0 0 32px rgba(0, 201, 167, 0.12);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.85rem 2.25rem;
+  display: block;
+  padding: 0;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -4258,48 +4254,64 @@ html, body {
   box-shadow: 0 24px 56px -6px rgba(0, 0, 0, 0.85), 0 0 44px rgba(0, 201, 167, 0.25);
 }
 
-.learntube-hero-bg-art {
+.learntube-hero-thumb-wrap {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  background: 
-    radial-gradient(circle at 18% 30%, rgba(0, 201, 167, 0.22) 0%, transparent 60%),
-    radial-gradient(circle at 82% 45%, rgba(0, 166, 138, 0.20) 0%, transparent 55%),
-    radial-gradient(circle at 50% 90%, rgba(255, 107, 107, 0.12) 0%, transparent 50%);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-.learntube-hero-left {
-  position: relative;
-  z-index: 2;
-  max-width: 58%;
+.learntube-hero-main-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.learntube-hero-banner:hover .learntube-hero-main-thumb {
+  transform: scale(1.03);
+}
+
+.learntube-hero-overlay-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(9, 19, 22, 0.55) 0%,
+    rgba(9, 19, 22, 0.1) 40%,
+    rgba(9, 19, 22, 0.7) 100%
+  );
+  pointer-events: none;
+}
+
+.learntube-hero-top-row {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  right: 16px;
+  z-index: 5;
   display: flex;
-  flex-direction: column;
-  gap: 0.95rem;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
 }
 
 .learntube-hero-badge-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.38rem 0.9rem;
-  background: rgba(0, 201, 167, 0.12);
-  border: 1px solid rgba(0, 201, 167, 0.35);
+  padding: 0.35rem 0.85rem;
+  background: rgba(9, 19, 22, 0.85);
+  border: 1px solid rgba(0, 201, 167, 0.4);
   border-radius: 9999px;
   color: #00C9A7;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  width: fit-content;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
   letter-spacing: 0.02em;
-}
-
-.learntube-hero-title-big {
-  font-size: clamp(1.4rem, 2.6vw, 2.25rem);
-  font-weight: 800;
-  color: #FFFFFF;
-  line-height: 1.18;
-  letter-spacing: -0.025em;
-  text-shadow: 0 2px 14px rgba(0,0,0,0.6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .learntube-hero-center-play {
@@ -4308,50 +4320,26 @@ html, body {
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 5;
-  width: 68px;
-  height: 68px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(9, 19, 22, 0.7);
+  border: 2px solid rgba(0, 201, 167, 0.8);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #FFFFFF;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 201, 167, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 201, 167, 0.5);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .learntube-hero-banner:hover .learntube-hero-center-play {
   transform: translate(-50%, -50%) scale(1.12);
-  background: rgba(0, 201, 167, 0.35);
+  background: rgba(0, 201, 167, 0.4);
   border-color: #00C9A7;
-  box-shadow: 0 0 32px rgba(0, 201, 167, 0.7);
-}
-
-.learntube-hero-right {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  height: 100%;
-  justify-content: flex-end;
-}
-
-.learntube-hero-instructor-img {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  height: 100%;
-  max-width: 44%;
-  object-fit: contain;
-  object-position: bottom right;
-  pointer-events: none;
-  filter: drop-shadow(0 4px 20px rgba(0,0,0,0.6));
-  mask-image: linear-gradient(to left, black 65%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to left, black 65%, transparent 100%);
+  box-shadow: 0 0 36px rgba(0, 201, 167, 0.8);
 }
 
 .learntube-hero-duration-badge {
