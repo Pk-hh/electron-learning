@@ -1098,17 +1098,11 @@ export function App() {
               <div className="brand-badge" onClick={() => { setActiveTab('home'); setSelectedSubjectId(null); }}>
                 <div className="learntube-logo-wrap">
                   <div className="learntube-logo-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      {/* Play triangle background with Mortarboard Graduation Cap silhouette */}
-                      <path d="M5.5 4.8C5.5 3.9 6.5 3.3 7.3 3.8L19.2 10.7C20 11.2 20 12.3 19.2 12.8L7.3 19.7C6.5 20.2 5.5 19.6 5.5 18.7V4.8Z" fill="white" fillOpacity="0.95" />
-                      <path d="M12 7.2L7 9.8L12 12.4L17 9.8L12 7.2Z" fill="#0C1024" />
-                      <path d="M9.2 11.5V13.8C9.2 14.8 10.4 15.6 12 15.6C13.6 15.6 14.8 14.8 14.8 13.8V11.5L12 13L9.2 11.5Z" fill="#0C1024" />
-                      <path d="M16 10.2V13.5" stroke="#0C1024" strokeWidth="1.2" strokeLinecap="round" />
-                    </svg>
+                    <img src="/logo.png" alt="LearnTube Logo" className="learntube-logo-img" />
                   </div>
                   <div>
                     <div className="brand-title">Learn<span>Tube</span></div>
-                    <div className="brand-tagline">electrON Learning • Premium Classes</div>
+                    <div className="brand-tagline">Learn Today A Brighter Tomorrow</div>
                   </div>
                 </div>
               </div>
