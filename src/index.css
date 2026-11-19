@@ -2055,7 +2055,7 @@ html, body {
   left: 0;
   right: 0;
   height: calc(62px + env(safe-area-inset-bottom, 0px));
-  background: rgba(8, 12, 28, 0.95);
+  background: rgba(9, 19, 22, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -2092,29 +2092,29 @@ html, body {
 }
 
 .mobile-nav-item.active {
-  color: #00D2FF;
+  color: var(--brand);
   font-weight: 700;
 }
 
 .mobile-nav-item.active svg {
-  stroke: #00D2FF;
-  filter: drop-shadow(0 0 8px rgba(0, 210, 255, 0.65));
+  stroke: var(--brand);
+  filter: drop-shadow(0 0 8px rgba(0, 201, 167, 0.65));
   transform: translateY(-2px) scale(1.1);
 }
 
 .mobile-nav-item::before {
   content: '';
   position: absolute;
-  top: -6px;
+  top: 0;
   left: 50%;
   transform: translateX(-50%) scaleX(0);
   width: 26px;
   height: 3px;
-  background: #00D2FF;
+  background: var(--brand);
   border-radius: 9999px;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
   opacity: 0;
-  box-shadow: 0 0 10px #00D2FF, 0 0 18px rgba(0, 210, 255, 0.5);
+  box-shadow: 0 0 10px var(--brand), 0 0 18px rgba(0, 201, 167, 0.5);
 }
 
 .mobile-nav-item.active::before {
@@ -2944,7 +2944,8 @@ html, body {
 
 /* ── Course Hero Banner ── */
 .course-hero-banner {
-  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+  background: linear-gradient(135deg, #091316 0%, #122226 100%);
+  border: 1px solid rgba(0, 201, 167, 0.22);
   border-radius: var(--radius-xl);
   padding: 1.5rem 1.6rem;
   color: #FFFFFF;
@@ -2953,7 +2954,7 @@ html, body {
   align-items: center;
   flex-wrap: wrap;
   gap: 1.25rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 201, 167, 0.08);
   position: relative;
   overflow: hidden;
 }
@@ -3194,7 +3195,7 @@ html, body {
 
 .course-module-header {
   padding: 1.15rem 1.4rem;
-  background: var(--bg-surface);
+  background: var(--bg-surface) !important;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
@@ -3948,7 +3949,7 @@ html, body {
 .interactive-header:hover,
 .interactive-header:active,
 .interactive-header:focus {
-  background: rgba(0, 201, 167, 0.08);
+  background: rgba(0, 201, 167, 0.08) !important;
 }
 
 .module-accordion-chevron {

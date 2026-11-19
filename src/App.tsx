@@ -1819,7 +1819,7 @@ export function App() {
                                               {v.thumbnail_url ? (
                                                 <img src={v.thumbnail_url} alt={v.title} className="course-lesson-thumb" />
                                               ) : (
-                                                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1e293b, #0f172a)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #122226, #091316)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                   <Play size={18} color="rgba(255,255,255,0.7)" />
                                                 </div>
                                               )}
@@ -1917,7 +1917,7 @@ export function App() {
                                           {v.thumbnail_url ? (
                                             <img src={v.thumbnail_url} alt={v.title} className="course-lesson-thumb" />
                                           ) : (
-                                            <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1e293b, #0f172a)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #122226, #091316)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                               <Play size={18} color="rgba(255,255,255,0.7)" />
                                             </div>
                                           )}
@@ -3565,7 +3565,7 @@ function VideoThumbnail({ video, className = 'video-thumb' }: VideoThumbnailProp
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+          background: 'linear-gradient(135deg, #091316 0%, #122226 100%)',
           padding: '0.85rem',
           textAlign: 'center',
           position: 'relative',
@@ -3577,7 +3577,7 @@ function VideoThumbnail({ video, className = 'video-thumb' }: VideoThumbnailProp
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'radial-gradient(circle at 50% 25%, rgba(37, 99, 235, 0.25) 0%, transparent 70%)',
+            background: 'radial-gradient(circle at 50% 25%, rgba(0, 201, 167, 0.25) 0%, transparent 70%)',
           }}
         />
         <div
@@ -3585,12 +3585,12 @@ function VideoThumbnail({ video, className = 'video-thumb' }: VideoThumbnailProp
             width: 38,
             height: 38,
             borderRadius: 10,
-            background: 'rgba(37, 99, 235, 0.2)',
-            border: '1px solid rgba(59, 130, 246, 0.35)',
+            background: 'rgba(0, 201, 167, 0.18)',
+            border: '1px solid rgba(0, 201, 167, 0.35)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#60A5FA',
+            color: '#00C9A7',
             marginBottom: '0.35rem',
             position: 'relative',
             zIndex: 1,
@@ -3602,7 +3602,7 @@ function VideoThumbnail({ video, className = 'video-thumb' }: VideoThumbnailProp
           style={{
             fontSize: '0.7rem',
             fontWeight: 700,
-            color: '#93C5FD',
+            color: '#00C9A7',
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
             position: 'relative',
